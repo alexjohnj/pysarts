@@ -3,7 +3,7 @@
 master_date: 2016-06-23T17:55:00Z
 
 # The SLC dates to include in the time series. The master date is automatically
-# included.
+# included. If this key isn't included, all dates will be used.
 dates:
   - 2016-06-13
   - 2016-07-23
@@ -23,11 +23,12 @@ region:
   lon_min: 15
   lon_max: 40
 
-# The grid resolution to resample the interferograms to in metres. A value of 0
-# indicates no resampling.
+# The grid resolution to resample the interferograms to in metres. If this
+# option is missing, no resampling is performed.
 resolution:
   delta_x: 0
   delta_y: 0
 
-# The verbosity of logging. One of CRITICAL, ERROR, WARNING, INFO or DEBUG
+# The verbosity of logging. One of CRITICAL, ERROR, WARNING, INFO or DEBUG. If
+# this key isn't included, defaults to WARN.
 log_level: WARN
