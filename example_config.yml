@@ -28,3 +28,6 @@ region:
 resolution:
   delta_x: 0
   delta_y: 0
+
+# The verbosity of logging. One of CRITICAL, ERROR, WARNING, INFO or DEBUG
+log_level: WARN
