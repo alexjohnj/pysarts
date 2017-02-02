@@ -1,0 +1,30 @@
+# The master date to use in the time series. The time of the acquisition is used
+# to fetch weather data. This should be formatted as an ISO8601 date and time.
+master_date: 2016-06-23T17:55:00Z
+
+# The SLC dates to include in the time series. The master date is automatically
+# included.
+dates:
+  - 2016-06-13
+  - 2016-07-23
+
+# The locations of files and directories used in the processing steps.
+files:
+  # The directory where unwrapped interferograms are stored.
+  uifg_dir: ./uifg
+  # The directory where the output of the processing steps is saved.
+  scratch_dir: .
+
+# Define the study region by a bounding box. If this setting isn't included the
+# entire region of the interferograms will be used.
+region:
+  lat_min: -12
+  lat_max: 12
+  lon_min: 15
+  lon_max: 40
+
+# The grid resolution to resample the interferograms to in metres. A value of 0
+# indicates no resampling.
+resolution:
+  delta_x: 0
+  delta_y: 0
