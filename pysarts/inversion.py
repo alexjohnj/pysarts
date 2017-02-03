@@ -74,16 +74,19 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
         for idx, path in enumerate(ifg_paths):
             data[:, :, idx] = np.load(path)
 
-        # Solve the inverse problem
-        logging.debug('Starting computation')
-        for idx in np.ndindex(grid_shape):
-            print("Solving pixel {:5d}, {:5d} of {:5d}, {:5d}".format(idx[0],
-                                                                      idx[1],
-                                                                      grid_shape[0],
-                                                                      grid_shape[1],),
-                  end='\r')
+        # Reshape matrices so the inversion can be done for all pixels in one function
+        #
+        # Each column is a pixel starting from the top-left corner. Each row is
+        # a SLC time in ascending order.
+        data = data.transpose(2, 0, 1).reshape(kernel.shape[0], -1)
 
-            output_model[idx[0], idx[1], :], _, _, _ = np.linalg.lstsq(kernel, data[idx[0], idx[1], :])
+        # Solve the inverse problem
+        logging.info('Solving inverse problem')
+        # A note on the reshaping. The output of lstsq is a 2D matrix. Each
+        # column is a pixel in an interferogram starting from the top-left. Each
+        # row is an SLC time in ascending order. We have to transpose the output
+        # first before reshaping it back into a 3D array.
+        output_model[:] = np.linalg.lstsq(kernel, data)[0].T.reshape(grid_shape + (-1,))
 
     new_ifg_dates = sorted(list(set([date for pairs in ifg_date_pairs for date in pairs])))
     return new_ifg_dates
