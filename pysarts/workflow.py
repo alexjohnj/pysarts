@@ -74,6 +74,49 @@ def save_ifg_to_npy(ifg, out_dir):
 
     return None
 
+def extract_grid_from_ifg(ifg, output_name):
+    """Extracts information necessary to reconstruct the grid and saves it to a
+    file.
+
+    The output format is a 2 line plain text file:
+       lon=lon_min:lon_max:nlon
+       lat=lat_min:lat_max:nlat
+    """
+    lon_min = np.amin(ifg['lons'])
+    lon_max = np.amax(ifg['lons'])
+    nlon = len(ifg['lons'])
+    lat_min = np.amin(ifg['lats'])
+    lat_max = np.amax(ifg['lats'])
+    nlat = len(ifg['lats'])
+
+    with open(output_name, 'w') as f:
+        f.write('lon={:.5f}:{:.5f}:{:d}\n'.format(lon_min, lon_max, nlon))
+        f.write('lat={:.5f}:{:.5f}:{:d}\n'.format(lat_min, lat_max, nlat))
+
+    return None
+
+def read_grid_from_file(path):
+    """Reads a grid save by extract_grid_from_ifg
+
+    Returns a 2-tuple containing (lons, lats)
+    """
+    lons = []
+    lats = []
+    with open(path) as f:
+        for line in f:
+            key, rng = tuple(line.split('='))
+            rng_min, rng_max, rng_len = tuple(rng.split(':'))
+            grid_elements = np.linspace(float(rng_min), float(rng_max), int(rng_len))
+
+            if key == 'lon':
+                lons = grid_elements
+            elif key == 'lat':
+                lats = grid_elements
+            else:
+                raise KeyError
+
+    return (lons, lats)
+
 ### MAIN WORKFLOW STEPS
 def execute_load_clip_resample_convert_step():
     """Execute the first step of the processing flow.
@@ -81,13 +124,19 @@ def execute_load_clip_resample_convert_step():
     This step finds all interferograms in the unwrapped interferogram directory
     whose dates satisfy the config dates. It then clips them (if enabled),
     resamples them (if enabled) and saves the (new) IFGs to the 'uifg_resampled'
-    directory as `npy` files.
+    directory as `npy` files. This step also extracts the grid dimensions from
+    the last processed interferogram and saves them to a file called 'grid.txt'
+    in SCRATCH_DIR.
 
     """
     ifg_paths = find_ifgs()
+    ifg = {}
     for path in ifg_paths:
         ifg = load_clip_resample(path)
         output_dir = os.path.join(config.SCRATCH_DIR, 'uifg_resampled')
         save_ifg_to_npy(ifg, output_dir)
+
+    # Save grid details
+    extract_grid_from_ifg(ifg, os.path.join(config.SCRATCH_DIR, 'grid.txt'))
 
     return None
