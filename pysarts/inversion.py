@@ -55,8 +55,8 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
 
     Returns
     -------
-    A dictionary of dates mapping onto indices that can be used to find
-    interferograms in `output_model`.
+    A sorted list of dates whose indices can be used to find interferograms in
+    `output_model`.
     """
     ifg_date_pairs = list(map(util.extract_timestamp_from_ifg_name, ifg_paths))
     kernel = construct_kernel(ifg_date_pairs, master_date)
@@ -86,4 +86,4 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
             output_model[idx[0], idx[1], :], _, _, _ = np.linalg.lstsq(kernel, data[idx[0], idx[1], :])
 
     new_ifg_dates = sorted(list(set([date for pairs in ifg_date_pairs for date in pairs])))
-    return {date: idx for (idx, date) in enumerate(new_ifg_dates)}
+    return new_ifg_dates

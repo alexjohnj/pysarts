@@ -13,6 +13,7 @@ import yaml
 from . import config
 from . import inversion
 from . import processing
+from . import timeseries
 from . import util
 
 def load_config(path):
@@ -177,7 +178,35 @@ def execute_invert_unwrapped_phase():
                                               'w+',
                                               shape=(grid_shape + (nslcs,)))
     logging.info('Starting inversion')
-    date_map = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
+    dates = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
     logging.info('Finished inversion')
     with open(output_file_meta, 'w') as f:
-        yaml.dump(date_map, f)
+        yaml.dump(dates, f)
+
+def execute_calculate_master_atmosphere():
+    """Executes the third step of the processing flow.
+
+    This step calculates the master atmosphere using the time series calculated
+    in step 2. It loads the time series saved in 'uifg_ts/MASTER_DATE.npy' and
+    saves the master atmosphere to 'master_atmosphere/MASTER_DATE.npy'.
+
+    """
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'master_atmosphere'), exist_ok=True)
+    output_file_name = os.path.join(config.SCRATCH_DIR,
+                                    'master_atmosphere',
+                                    config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
+
+    ts_ifgs = np.load(os.path.join(config.SCRATCH_DIR,
+                                   'uifg_ts',
+                                   config.MASTER_DATE.strftime('%Y%m%d') + '.npy'),
+                      mmap_mode='r')
+    ts_dates = []
+    with open(os.path.join(config.SCRATCH_DIR,
+                           'uifg_ts',
+                           config.MASTER_DATE.strftime('%Y%m%d') + '.yml')) as f:
+        ts_dates = yaml.safe_load(f)
+
+    master_atmosphere = timeseries.calculate_master_atmosphere(ts_ifgs, ts_dates,
+                                                               config.MASTER_DATE.date())
+    logging.info('Saving master atmosphere')
+    np.save(output_file_name, master_atmosphere)
