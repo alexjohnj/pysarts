@@ -11,3 +11,4 @@ PROJECT_DIR = sys.argv[1]
 os.chdir(PROJECT_DIR)
 workflow.load_config('config.yml')
 workflow.execute_load_clip_resample_convert_step()
+workflow.execute_invert_unwrapped_phase()

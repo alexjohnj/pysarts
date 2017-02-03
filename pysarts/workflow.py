@@ -5,11 +5,15 @@ Almost all of these functions have side-effects.
 
 import logging
 import os
+import glob
 
 import numpy as np
+import yaml
 
 from . import config
+from . import inversion
 from . import processing
+from . import util
 
 def load_config(path):
     """Loads the configuration from the YAML file at `path`, updating the config and
@@ -140,3 +144,40 @@ def execute_load_clip_resample_convert_step():
     extract_grid_from_ifg(ifg, os.path.join(config.SCRATCH_DIR, 'grid.txt'))
 
     return None
+
+def execute_invert_unwrapped_phase():
+    """Executes the second step of the processing flow.
+
+    This steps takes the interferograms and inverts the timeseries relative to
+    the master date. The time series is saved to the `uifg_ts` directory as a 3D
+    npy array called MASTER_DATE.npy. Also saved is a metadata file containing
+    the dates of each index along the third dimension of the array.
+
+    Input interferograms are loaded from the uifg_resampled directory. Grid
+    dimensions are loaded from 'grid.txt'.
+
+    """
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'uifg_ts'), exist_ok=True)
+    output_file_base = os.path.join(config.SCRATCH_DIR, 'uifg_ts',
+                                    config.MASTER_DATE.strftime('%Y%m%d'))
+    output_file_name = output_file_base + '.npy'
+    output_file_meta = output_file_base + '.yml'
+    ifg_paths = glob.glob(os.path.join(config.SCRATCH_DIR,
+                                       'uifg_resampled',
+                                       '*.npy'))
+
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+    grid_shape = (len(lats), len(lons))
+
+    # Work out the shape of the output data.
+    ifg_date_pairs = map(util.extract_timestamp_from_ifg_name, ifg_paths)
+    nslcs = len(set([date for pair in ifg_date_pairs for date in pair]))
+    logging.info('Creating inversion output memory map')
+    output_matrix = np.lib.format.open_memmap(output_file_name,
+                                              'w+',
+                                              shape=(grid_shape + (nslcs,)))
+    logging.info('Starting inversion')
+    date_map = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
+    logging.info('Finished inversion')
+    with open(output_file_meta, 'w') as f:
+        yaml.dump(date_map, f)
