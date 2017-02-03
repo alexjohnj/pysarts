@@ -2,7 +2,7 @@
 
 """
 import os
-from datetime import date
+from datetime import date, datetime
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -10,15 +10,16 @@ from mpl_toolkits.basemap import Basemap
 import numpy as np
 
 from . import processing
+from . import workflow
 
 if __name__ == '__main__':
     from . import config
     import argparse
 
 def _parse_unwrapped_ifg_args(args):
-    plot_unwrapped_ifg(args.master, args.slave, args.output)
+    plot_unwrapped_ifg(args.master, args.slave, args.output, args.resampled)
 
-def plot_unwrapped_ifg(master_date, slave_date, fname=None):
+def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     """
     master_date, slc_date : str or date
       If a string, should be in the format '%Y%m%d'.
@@ -35,9 +36,22 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None):
     if isinstance(slave_date, date):
         slave_date = date.strftime("%Y%m%d")
 
-    ifg_fname = '{}_{}.nc'.format(slave_date, master_date)
-    ifg_path = os.path.join(config.UIFG_DIR, ifg_fname)
-    ifg = processing.open_ifg_netcdf(ifg_path)
+    ifg_name = '{}_{}'.format(slave_date, master_date)
+    ifg_path = ''
+    ifg = {}
+    if resampled:
+        ifg_path = os.path.join(config.SCRATCH_DIR, 'uifg_resampled', ifg_name + '.npy')
+        data = np.load(ifg_path)
+        lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                               'grid.txt'))
+        ifg['data'] = data
+        ifg['lons'] = lons
+        ifg['lats'] = lats
+        ifg['master_date'] = datetime.strptime(master_date, '%Y%m%d').date()
+        ifg['slave_date'] = datetime.strptime(slave_date, '%Y%m%d').date()
+    else:
+        ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
+        ifg = processing.open_ifg_netcdf(ifg_path)
 
     fig = plt.figure()
     axes = fig.add_subplot(1, 1, 1)
@@ -94,11 +108,13 @@ if __name__ == '__main__':
                                                 help='Plot an unwrapped interferogram')
     plot_uifg_subparser.set_defaults(func=_parse_unwrapped_ifg_args)
     plot_uifg_subparser.add_argument('-m', '--master', action='store',
-                                     help='Master date', required=True)
+                                     help='Master date (YYYYMMDD)', required=True)
     plot_uifg_subparser.add_argument('-s', '--slave', action='store',
-                                     help='Slave date', required=True)
+                                     help='Slave date (YYYYMMDD)', required=True)
     plot_uifg_subparser.add_argument('-o', '--output', action='store', default=None,
                                      help='Output filename')
+    plot_uifg_subparser.add_argument('-r', '--resampled', action='store_true',
+                                     help='Plot the resampled interferogram')
 
     args = parser.parse_args()
     os.chdir(args.d)
