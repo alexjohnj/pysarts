@@ -138,11 +138,13 @@ def execute_load_clip_resample_convert_step():
     ifg_paths = find_ifgs()
     ifg = {}
     for path in ifg_paths:
+        logging.info('Processing %s', os.path.splitext(os.path.basename(path))[0])
         ifg = load_clip_resample(path)
         output_dir = os.path.join(config.SCRATCH_DIR, 'uifg_resampled')
         save_ifg_to_npy(ifg, output_dir)
 
     # Save grid details
+    logging.info('Extracting grid')
     extract_grid_from_ifg(ifg, os.path.join(config.SCRATCH_DIR, 'grid.txt'))
 
     return None
@@ -180,7 +182,6 @@ def execute_invert_unwrapped_phase():
                                               shape=(grid_shape + (nslcs,)))
     logging.info('Starting inversion for master date %s', config.MASTER_DATE.strftime('%Y-%m-%d'))
     dates = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
-    logging.info('Finished inversion')
     with open(output_file_meta, 'w') as f:
         yaml.dump(dates, f)
 
@@ -210,7 +211,6 @@ def execute_calculate_master_atmosphere():
     logging.info('Starting master atmosphere inversion for %s', config.MASTER_DATE.strftime('%Y-%m-%d'))
     master_atmosphere = timeseries.calculate_master_atmosphere(ts_ifgs, ts_dates,
                                                                config.MASTER_DATE.date())
-    logging.info('Saving master atmosphere')
     np.save(output_file_name, master_atmosphere)
 
 def execute_master_atmosphere_rainfall_correlation():

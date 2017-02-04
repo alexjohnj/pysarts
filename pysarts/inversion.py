@@ -81,7 +81,9 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
         data = data.transpose(2, 0, 1).reshape(kernel.shape[0], -1)
 
         # Solve the inverse problem
-        logging.info('Solving inverse problem')
+        logging.info('Solving for %d unknowns using %d knowns',
+                     grid_shape[0] * grid_shape[1] * kernel.shape[1],
+                     data.size)
         # A note on the reshaping. The output of lstsq is a 2D matrix. Each
         # column is a pixel in an interferogram starting from the top-left. Each
         # row is an SLC time in ascending order. We have to transpose the output
