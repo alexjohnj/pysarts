@@ -12,6 +12,7 @@ import yaml
 
 from . import processing
 from . import workflow
+from . import nimrod
 
 if __name__ == '__main__':
     from . import config
@@ -170,11 +171,60 @@ def plot_master_atmosphere(master_date, fname=None):
         'data': master_atmosphere,
         'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
         'slave_date': datetime.today().date() # Dummy value
-        }
+    }
 
     fig = plot_ifg(ifg)
     axes = fig.get_axes()[0]
     axes.set_title('Master Atmosphere\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
+    if fname:
+        fig.savefig(fname)
+    else:
+        plt.show()
+def _plot_master_atmosphere_vs_rainfall(args):
+    """Interactively plot master atmosphere vs. rainfall rate."""
+    if args.master_date:
+        plot_master_atmosphere_vs_rainfall(args.master_date, args.rain_tol, args.output)
+    else:
+        plot_master_atmosphere_vs_rainfall(config.MASTER_DATE, args.rain_tol, args.output)
+
+def plot_master_atmosphere_vs_rainfall(master_date, rain_tol=0, fname=None):
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%dT%H%M')
+
+    # Load master atmosphere for the date
+    master_atmosphere = np.load(os.path.join(config.SCRATCH_DIR,
+                                             'master_atmosphere',
+                                             master_date.strftime('%Y%m%d') + '.npy'),
+                                mmap_mode='r')
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': master_atmosphere,
+        'master_date': master_date
+    }
+
+    # Load weather radar for date
+    wr = nimrod.load_from_netcdf(os.path.join(config.WEATHER_RADAR_DIR,
+                                              master_date.strftime('%Y'),
+                                              master_date.strftime('%m'),
+                                              master_date.strftime('%Y%m%d%H%M') + '.nc'))
+    lon_bounds = (np.amin(lons), np.amax(lons))
+    lat_bounds = (np.amin(lats), np.amax(lats))
+    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+    wr = nimrod.resample_wr(wr, lons, lats)
+    wr_above_tol_idxs = np.where(wr['data'].ravel() > rain_tol)
+
+    fig = plt.figure()
+    axes = fig.add_subplot(1, 1, 1)
+    axes.scatter(wr['data'].ravel()[wr_above_tol_idxs],
+                 ifg['data'].ravel()[wr_above_tol_idxs]*10**16,
+                 s=1)
+    axes.set_title('Rainfall Scatter ({})'.format(master_date.strftime('%Y-%m-%d')))
+    axes.set_xlabel(r'Rainfall / mm hr$^{-1}$')
+    axes.set_ylabel(r'Residual LOS Delay / cm $\left(\times 10^{-16}\right)$')
+
     if fname:
         fig.savefig(fname)
     else:
@@ -206,6 +256,15 @@ if __name__ == '__main__':
     plot_master_atmosphere_subparser.add_argument('master_date', default=None, nargs='?')
     plot_master_atmosphere_subparser.add_argument('-o', '--output', action='store', default=None,
                                                   help='Output file name')
+
+    plot_rainfall_correlation_subparser = subparsers.add_parser('radar-correlation',
+                                                                help='Plot radar rainfall correlation for a date')
+    plot_rainfall_correlation_subparser.set_defaults(func=_plot_master_atmosphere_vs_rainfall)
+    plot_rainfall_correlation_subparser.add_argument('master_date', default=None, nargs='?')
+    plot_rainfall_correlation_subparser.add_argument('-o', '--output', action='store', default=None,
+                                                     help='Output file name')
+    plot_rainfall_correlation_subparser.add_argument('-r', '--rain-tol', default=0, type=float, action='store',
+                                                    help='Minimum rainfall level to plot in scatter chart.')
 
     args = parser.parse_args()
     os.chdir(args.d)

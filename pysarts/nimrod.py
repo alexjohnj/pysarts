@@ -110,7 +110,7 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
     if wr['lons'].size != ifg['lons'].size or wr['lats'].size != ifg['lats'].size:
         wr = resample_wr(wr, ifg['lons'], ifg['lats'])
 
-    wr_below_tol_idxs = np.where(wr['data'].ravel() >= rain_tol)
+    wr_below_tol_idxs = np.where(wr['data'].ravel() > rain_tol)
     logging.debug('Calculating correlation coefficient')
     return stats.pearsonr(wr['data'].ravel()[wr_below_tol_idxs],
                           ifg['data'].ravel()[wr_below_tol_idxs])
