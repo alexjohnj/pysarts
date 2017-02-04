@@ -1,3 +1,4 @@
+from datetime import datetime
 import argparse
 import sys
 import os
@@ -19,6 +20,10 @@ mainParser.add_argument('-c', '--config',
                         action='store',
                         default='config.yml',
                         help='Path to a project configuration file')
+mainParser.add_argument('-m', '--master',
+                        action='store',
+                        default=None,
+                        help='Master date (overrides what is in the configuration file). Format YYYYmmddTHHMM.')
 
 subparsers = mainParser.add_subparsers()
 clip_resample_parser = subparsers.add_parser('clip-resample',
@@ -38,5 +43,8 @@ weather_radar_parser.set_defaults(func=workflow.execute_master_atmosphere_rainfa
 args = mainParser.parse_args()
 os.chdir(args.directory)
 workflow.load_config(args.config)
+
+if args.master:
+    workflow.config.MASTER_DATE = datetime.strptime(args.master, '%Y%m%dT%H%M')
 
 args.func()
