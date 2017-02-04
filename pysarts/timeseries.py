@@ -27,15 +27,13 @@ def calculate_master_atmosphere(ts_ifgs, dates, master_date):
     kernel = np.ones((ts_ifgs.shape[2], 2))
     kernel[:, 1] = np.array(relative_dates)
 
-    for pixel in np.ndindex(grid_shape):
-        print("Calculating pixel {:5d}, {:5d} of {:5d}, {:5d}".format(pixel[0]+1,
-                                                                      pixel[1]+1,
-                                                                      grid_shape[0],
-                                                                      grid_shape[1],),
-              end='\r')
-        model, _, _, _ = np.linalg.lstsq(kernel, ts_ifgs[pixel[0], pixel[1], :])
-        res = ts_ifgs[pixel[0], pixel[1], :] - kernel @ model
-        master_atmosphere[pixel[0], pixel[1]] = np.mean(res)
+    # Reshape matrices so the inversion can be run in one function call
+    data = ts_ifgs.transpose(2, 0, 1).reshape(kernel.shape[0], -1)
+    logging.info('Solving for %d unknowns using %d knowns',
+                 2 * grid_shape[0] * grid_shape[1],
+                 data.size)
+    model = np.linalg.lstsq(kernel, data)[0]
+    res = data - kernel @ model
+    master_atmosphere = res.mean(axis=0).reshape(grid_shape)
 
-    print("")
     return master_atmosphere
