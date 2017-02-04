@@ -29,8 +29,8 @@ def construct_kernel(ifg_dates, master_date):
 
     kernel = np.zeros((len(ifg_dates), len(slc_dates)))
     for idx, (ifg_master, ifg_slave) in enumerate(ifg_dates):
-        kernel[idx, date_lookup[ifg_master]] = 1
-        kernel[idx, date_lookup[ifg_slave]] = -1
+        kernel[idx, date_lookup[ifg_master]] = -1
+        kernel[idx, date_lookup[ifg_slave]] = 1
 
     kernel[:, date_lookup[master_date]] = 0 # Make inversion relative to master date
 
