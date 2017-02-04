@@ -144,6 +144,42 @@ def plot_time_series_ifg(master_date, slave_date, fname=None):
         plt.show()
         plt.close()
 
+def _plot_master_atmosphere(args):
+    """Plot the master atmosphere from the command line."""
+    if args.master_date:
+        plot_master_atmosphere(args.master_date, args.output)
+    else:
+        plot_master_atmosphere(config.MASTER_DATE.date(), args.output)
+
+def plot_master_atmosphere(master_date, fname=None):
+    """Plot the master atmosphere for a given date."""
+    if isinstance(master_date, date):
+        master_date = master_date.strftime('%Y%m%d')
+
+    # Load the master atmosphere
+    master_atmosphere = np.load(os.path.join(config.SCRATCH_DIR,
+                                             'master_atmosphere',
+                                             master_date + '.npy'),
+                                mmap_mode='r')
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': master_atmosphere,
+        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
+        'slave_date': datetime.today().date() # Dummy value
+        }
+
+    fig = plot_ifg(ifg)
+    axes = fig.get_axes()[0]
+    axes.set_title('Master Atmosphere\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
+    if fname:
+        fig.savefig(fname)
+    else:
+        plt.show()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -163,6 +199,13 @@ if __name__ == '__main__':
                                      help='Plot the resampled interferogram')
     plot_uifg_subparser.add_argument('-t', '--time-series', action='store_true',
                                      help='Plot inverted time series interferogram')
+
+    plot_master_atmosphere_subparser = subparsers.add_parser('master-atmos',
+                                                             help='Plot master atmosphere for a date')
+    plot_master_atmosphere_subparser.set_defaults(func=_plot_master_atmosphere)
+    plot_master_atmosphere_subparser.add_argument('master_date', default=None, nargs='?')
+    plot_master_atmosphere_subparser.add_argument('-o', '--output', action='store', default=None,
+                                                  help='Output file name')
 
     args = parser.parse_args()
     os.chdir(args.d)
