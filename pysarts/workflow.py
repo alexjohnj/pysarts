@@ -12,6 +12,7 @@ import yaml
 
 from . import config
 from . import inversion
+from . import nimrod
 from . import processing
 from . import timeseries
 from . import util
@@ -210,3 +211,31 @@ def execute_calculate_master_atmosphere():
                                                                config.MASTER_DATE.date())
     logging.info('Saving master atmosphere')
     np.save(output_file_name, master_atmosphere)
+
+def execute_master_atmosphere_rainfall_correlation():
+    """Calculate the correlation coefficient between weather radar rainfall and
+    the master atmosphere.
+
+    This is an optional part of the processing workflow
+
+    The correlation coefficient is printed to STDOUT.
+
+    """
+    # Load the master atmosphere ifg
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+    ifg_data = np.load(os.path.join(config.SCRATCH_DIR,
+                                    'master_atmosphere',
+                                    config.MASTER_DATE.strftime('%Y%m%d') + '.npy'))
+    ifg = {'lons': lons, 'lats': lats, 'data': ifg_data}
+
+    # Load the corresponding weather radar image
+    wr = nimrod.load_from_netcdf(os.path.join(config.WEATHER_RADAR_DIR,
+                                              config.MASTER_DATE.strftime('%Y'),
+                                              config.MASTER_DATE.strftime('%m'),
+                                              config.MASTER_DATE.strftime('%Y%m%d%H%M') + '.nc'))
+    lon_bounds = (np.amin(lons), np.amax(lons))
+    lat_bounds = (np.amin(lats), np.amax(lats))
+    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+
+    (r, p) = nimrod.calc_wr_ifg_correlation(wr, ifg, rain_tol=1)
+    print('Correlation Coefficient: {}, P-Value: {}'.format(r, p))

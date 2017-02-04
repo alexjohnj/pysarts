@@ -30,6 +30,9 @@ invert_unwrapped_parser.set_defaults(func=workflow.execute_invert_unwrapped_phas
 calculate_master_atmos_parser = subparsers.add_parser('master-atmos',
                                                       help='Calculate the master atmosphere')
 calculate_master_atmos_parser.set_defaults(func=workflow.execute_calculate_master_atmosphere)
+weather_radar_parser = subparsers.add_parser('radar-correlation',
+                                             help='Calculate the correlation between weather radar rainfall and master atmosphere.')
+weather_radar_parser.set_defaults(func=workflow.execute_master_atmosphere_rainfall_correlation)
 
 # Parse Arguments
 args = mainParser.parse_args()

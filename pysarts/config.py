@@ -11,7 +11,7 @@ These values default to None and must be set manually after importing this
 module.
 
 """
-from collections import namedtuple
+import os.path
 import yaml
 
 """The master date used in all timeseries calculations. This is a datetime
@@ -35,6 +35,13 @@ UIFG_DIR = './uifg'
 '.'"""
 SCRATCH_DIR = '.'
 
+"""The directory where weather radar images are stored as NetCDF files. Defaults
+to './weather_radar'. Images are sorted into subdirectories by YEAR/MONTH and
+are named YYYYMMDDHHMM.
+
+"""
+WEATHER_RADAR_DIR = './weather_radar'
+
 """Resolution to resample to. Dict with keys 'delta_x' and 'delta_y' giving
 resolution in metres. Default to `None` indicating no resampling.
 
@@ -54,7 +61,6 @@ workflow. Default 'WARN'. One of 'CRITICAL', 'ERROR', 'WARNING', 'INFO' or
 """
 LOG_LEVEL = 'WARN'
 
-
 def load_from_yaml(path):
     """Load configuration from a YAML file."""
     conf = {}
@@ -62,14 +68,15 @@ def load_from_yaml(path):
         conf = yaml.safe_load(f)
 
     global MASTER_DATE, DATES
-    global UIFG_DIR, SCRATCH_DIR
+    global UIFG_DIR, SCRATCH_DIR, WEATHER_RADAR_DIR
     global RESOLUTION, REGION
     global LOG_LEVEL
 
     MASTER_DATE = conf['master_date']
     DATES = conf.get('dates', DATES)
-    UIFG_DIR = conf['files'].get('uifg_dir', UIFG_DIR)
-    SCRATCH_DIR = conf['files'].get('scratch_dir', SCRATCH_DIR)
+    UIFG_DIR = os.path.expanduser(conf['files'].get('uifg_dir', UIFG_DIR))
+    SCRATCH_DIR = os.path.expanduser(conf['files'].get('scratch_dir', SCRATCH_DIR))
+    WEATHER_RADAR_DIR = os.path.expanduser(conf['files'].get('wr_dir', WEATHER_RADAR_DIR))
     RESOLUTION = conf.get('resolution', RESOLUTION)
     LOG_LEVEL = conf.get('log_level', LOG_LEVEL)
     REGION = conf.get('region', REGION)

@@ -14,6 +14,9 @@ files:
   uifg_dir: ./uifg
   # The directory where the output of the processing steps is saved.
   scratch_dir: .
+  # The directory containing weather radar images sorted into subdirectories by
+  # Year/Month/YYYYMMDDHHMM
+  wr_dir: ./weather_radar
 
 # Define the study region by a bounding box. If this setting isn't included the
 # entire region of the interferograms will be used.
