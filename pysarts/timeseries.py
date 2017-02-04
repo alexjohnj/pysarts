@@ -27,7 +27,6 @@ def calculate_master_atmosphere(ts_ifgs, dates, master_date):
     kernel = np.ones((ts_ifgs.shape[2], 2))
     kernel[:, 1] = np.array(relative_dates)
 
-    logging.info('Starting master atmosphere calculation')
     for pixel in np.ndindex(grid_shape):
         print("Calculating pixel {:5d}, {:5d} of {:5d}, {:5d}".format(pixel[0]+1,
                                                                       pixel[1]+1,

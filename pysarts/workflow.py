@@ -174,11 +174,11 @@ def execute_invert_unwrapped_phase():
     # Work out the shape of the output data.
     ifg_date_pairs = map(util.extract_timestamp_from_ifg_name, ifg_paths)
     nslcs = len(set([date for pair in ifg_date_pairs for date in pair]))
-    logging.info('Creating inversion output memory map')
+    logging.debug('Creating inversion output memory map')
     output_matrix = np.lib.format.open_memmap(output_file_name,
                                               'w+',
                                               shape=(grid_shape + (nslcs,)))
-    logging.info('Starting inversion')
+    logging.info('Starting inversion for master date %s', config.MASTER_DATE.strftime('%Y-%m-%d'))
     dates = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
     logging.info('Finished inversion')
     with open(output_file_meta, 'w') as f:
@@ -207,6 +207,7 @@ def execute_calculate_master_atmosphere():
                            config.MASTER_DATE.strftime('%Y%m%d') + '.yml')) as f:
         ts_dates = yaml.safe_load(f)
 
+    logging.info('Starting master atmosphere inversion for %s', config.MASTER_DATE.strftime('%Y-%m-%d'))
     master_atmosphere = timeseries.calculate_master_atmosphere(ts_ifgs, ts_dates,
                                                                config.MASTER_DATE.date())
     logging.info('Saving master atmosphere')
