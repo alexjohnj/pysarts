@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
+import yaml
 
 from . import processing
 from . import workflow
@@ -17,7 +18,10 @@ if __name__ == '__main__':
     import argparse
 
 def _parse_unwrapped_ifg_args(args):
-    plot_unwrapped_ifg(args.master, args.slave, args.output, args.resampled)
+    if args.time_series:
+        plot_time_series_ifg(args.master, args.slave, args.output)
+    else:
+        plot_unwrapped_ifg(args.master, args.slave, args.output, args.resampled)
 
 def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     """
@@ -53,6 +57,17 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
         ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
         ifg = processing.open_ifg_netcdf(ifg_path)
 
+    fig = plot_ifg(ifg)
+    if fname:
+        fig.savefig(fname)
+    else:
+        plt.show()
+        plt.close()
+
+    return None
+
+def plot_ifg(ifg):
+    """Plot an ifg dictionary. Returns a figure handle"""
     fig = plt.figure()
     axes = fig.add_subplot(1, 1, 1)
     bmap = Basemap(llcrnrlon=ifg['lons'][0],
@@ -91,12 +106,43 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     axes.set_title(title)
     fig.tight_layout()
 
+    return fig
+
+def plot_time_series_ifg(master_date, slave_date, fname=None):
+    if isinstance(master_date, date):
+        master_date = master_date.strftime('%Y%m%d')
+
+    if isinstance(slave_date, date):
+        slave_date = slave_date.strftime('%Y%m%d')
+
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+    ifg_ts = np.load(os.path.join(config.SCRATCH_DIR,
+                                  'uifg_ts',
+                                  master_date + '.npy'),
+                     mmap_mode='r')
+    slave_date_idx = 0
+    with open(os.path.join(config.SCRATCH_DIR,
+                           'uifg_ts',
+                           master_date + '.yml')) as f:
+        ts_date_indexes = yaml.safe_load(f)
+        slave_date_date = datetime.strptime(slave_date, '%Y%m%d').date()
+        slave_date_idx = ts_date_indexes.index(slave_date_date)
+
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': ifg_ts[:, :, slave_date_idx],
+        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
+        'slave_date': datetime.strptime(slave_date, '%Y%m%d').date()
+    }
+
+    fig = plot_ifg(ifg)
     if fname:
         fig.savefig(fname)
     else:
         plt.show()
-
-    return None
+        plt.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
@@ -115,6 +161,8 @@ if __name__ == '__main__':
                                      help='Output filename')
     plot_uifg_subparser.add_argument('-r', '--resampled', action='store_true',
                                      help='Plot the resampled interferogram')
+    plot_uifg_subparser.add_argument('-t', '--time-series', action='store_true',
+                                     help='Plot inverted time series interferogram')
 
     args = parser.parse_args()
     os.chdir(args.d)
