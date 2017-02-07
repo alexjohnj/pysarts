@@ -33,7 +33,6 @@ def calculate_master_atmosphere(ts_ifgs, dates, master_date):
                  2 * grid_shape[0] * grid_shape[1],
                  data.size)
     model = np.linalg.lstsq(kernel, data)[0]
-    res = data - kernel @ model
-    master_atmosphere = res.mean(axis=0).reshape(grid_shape)
+    master_atmosphere = model[0, :].reshape(grid_shape)
 
     return master_atmosphere
