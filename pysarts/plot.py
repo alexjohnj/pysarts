@@ -60,7 +60,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
 
     fig = plot_ifg(ifg)
     if fname:
-        fig.savefig(fname)
+        fig.savefig(fname, bbox_inches='tight')
     else:
         plt.show()
         plt.close()
@@ -140,7 +140,7 @@ def plot_time_series_ifg(master_date, slave_date, fname=None):
 
     fig = plot_ifg(ifg)
     if fname:
-        fig.savefig(fname)
+        fig.savefig(fname, bbox_inches='tight')
     else:
         plt.show()
         plt.close()
@@ -177,7 +177,7 @@ def plot_master_atmosphere(master_date, fname=None):
     axes = fig.get_axes()[0]
     axes.set_title('Master Atmosphere\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
     if fname:
-        fig.savefig(fname)
+        fig.savefig(fname, bbox_inches='tight')
     else:
         plt.show()
 def _plot_master_atmosphere_vs_rainfall(args):
@@ -226,7 +226,7 @@ def plot_master_atmosphere_vs_rainfall(master_date, rain_tol=0, fname=None):
     axes.set_ylabel(r'Residual LOS Delay / cm $\left(\times 10^{-16}\right)$')
 
     if fname:
-        fig.savefig(fname)
+        fig.savefig(fname, bbox_inches='tight')
     else:
         plt.show()
 
