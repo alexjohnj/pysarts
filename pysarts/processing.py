@@ -103,6 +103,13 @@ def clip_ifg(ifg, lon_bounds, lat_bounds):
     ifg['lons'] = ifg['lons'][lon_min_idx:lon_max_idx+1]
     ifg['lats'] = ifg['lats'][lat_min_idx:lat_max_idx+1]
 
+def _resample_ifg(ifg, new_lons, new_lats):
+    """Resamples an IFG onto a new set of longitudes and latitudes."""
+    spline_f = RectBivariateSpline(ifg['lons'], ifg['lats'], ifg['data'].transpose())
+    ifg['data'] = spline_f(new_lons, new_lats, grid=True).transpose()
+    ifg['lons'] = new_lons
+    ifg['lats'] = new_lats
+
 def resample_ifg(ifg, delta_x, delta_y):
     """Resamples an IFG at a new resolution.
 
@@ -129,10 +136,7 @@ def resample_ifg(ifg, delta_x, delta_y):
     new_lons = np.arange(ifg['lons'][0], ifg['lons'][-1], delta_x_deg)
     new_lats = np.arange(ifg['lats'][0], ifg['lats'][-1], delta_y_deg)
 
-    spline_f = RectBivariateSpline(ifg['lons'], ifg['lats'], ifg['data'].transpose())
-    ifg['data'] = spline_f(new_lons, new_lats, grid=True).transpose()
-    ifg['lons'] = new_lons
-    ifg['lats'] = new_lats
+    _resample_ifg(ifg, new_lons, new_lats)
 
 def _point_is_in_grid(grid_x, grid_y, x, y):
     """Check if a point falls within a grid.
