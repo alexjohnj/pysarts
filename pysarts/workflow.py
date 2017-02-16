@@ -5,6 +5,7 @@ Almost all of these functions have side-effects.
 
 import logging
 import os
+from datetime import datetime
 import glob
 
 import numpy as np
@@ -123,6 +124,26 @@ def read_grid_from_file(path):
 
     return (lons, lats)
 
+def find_closest_weather_radar_file(master_date):
+    """Looks in the weather radar directory for the weather radar image closest
+    to the master date.
+
+    Returns the path to the closest radar image.
+    """
+    paths = glob.glob(os.path.join(config.WEATHER_RADAR_DIR, '**/*.nc'),
+                      recursive=True)
+
+    dates = []
+    for path in paths:
+        filename = os.path.basename(path)
+        dates += [datetime.strptime(filename, '%Y%m%d%H%M.nc')]
+
+    time_deltas = [abs(master_date - date) for date in dates]
+    sorted_time_deltas = sorted(time_deltas)
+
+    logging.info('Closest weather radar image: %s', paths[time_deltas.index(sorted_time_deltas[0])])
+    return paths[time_deltas.index(sorted_time_deltas[0])]
+
 ### MAIN WORKFLOW STEPS
 def execute_load_clip_resample_convert_step():
     """Execute the first step of the processing flow.
@@ -230,10 +251,8 @@ def execute_master_atmosphere_rainfall_correlation():
     ifg = {'lons': lons, 'lats': lats, 'data': ifg_data}
 
     # Load the corresponding weather radar image
-    wr = nimrod.load_from_netcdf(os.path.join(config.WEATHER_RADAR_DIR,
-                                              config.MASTER_DATE.strftime('%Y'),
-                                              config.MASTER_DATE.strftime('%m'),
-                                              config.MASTER_DATE.strftime('%Y%m%d%H%M') + '.nc'))
+    closest_wrimage_path = find_closest_weather_radar_file(config.MASTER_DATE)
+    wr = nimrod.load_from_netcdf(closest_wrimage_path)
     lon_bounds = (np.amin(lons), np.amax(lons))
     lat_bounds = (np.amin(lats), np.amax(lats))
     nimrod.clip_wr(wr, lon_bounds, lat_bounds)
