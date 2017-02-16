@@ -47,8 +47,7 @@ def clip_wr(wr, lon_bounds, lat_bounds):
     processing.clip_ifg(wr, lon_bounds, lat_bounds)
 
 def resample_wr(wr, new_lons, new_lats):
-    """Resample a weather radar image onto a new grid using a nearest-neighbour
-    algorithm.
+    """Resample a weather radar image onto a new grid using a RectBivariateSpline.
 
     Arguments
     ---------
@@ -65,17 +64,7 @@ def resample_wr(wr, new_lons, new_lats):
     """
     logging.debug('Resampling weather radar image')
     wr_new = wr.copy()
-    wr_new['lons'] = new_lons
-    wr_new['lats'] = new_lats
-
-    # Generate lat, lon pairings of coordinates
-    pixel_coords = np.array(np.meshgrid(wr['lats'], wr['lons'])).T.reshape(-1, 2)
-    new_pixel_coords = np.array(np.meshgrid(new_lats, new_lons)).T.reshape(-1, 2)
-    wr_new['data'] = interp.griddata(pixel_coords,
-                                     wr['data'].ravel(),
-                                     new_pixel_coords,
-                                     method='nearest')
-    wr_new['data'].shape = (len(new_lats), len(new_lons))
+    processing._resample_ifg(wr_new, new_lons, new_lats)
     logging.debug('Resampled weather radar image')
 
     return wr_new
