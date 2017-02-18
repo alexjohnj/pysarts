@@ -230,6 +230,75 @@ def plot_master_atmosphere_vs_rainfall(master_date, rain_tol=0, fname=None):
     else:
         plt.show()
 
+
+def _plot_weather(args):
+    if args.date:
+        plot_weather(args.date, args.full, args.output)
+    else:
+        plot_weather(config.MASTER_DATE, args.full, args.output)
+
+
+def plot_weather(wr_date, full=False, fname=None):
+    """Plot a weather radar image.
+    """
+    if isinstance(wr_date, str):
+        wr_date = datetime.strptime(wr_date, '%Y%m%dT%H%M')
+
+    # Load the weather radar image
+    wr_path = workflow.find_closest_weather_radar_file(wr_date)
+    wr = nimrod.load_from_netcdf(wr_path)
+
+    if not full:
+        # Clip image to target region
+        lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
+        lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
+        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+
+    fig = plt.figure()
+    axes = fig.add_subplot(1, 1, 1)
+    bmap = Basemap(llcrnrlon=wr['lons'][0],
+                   llcrnrlat=wr['lats'][0],
+                   urcrnrlon=wr['lons'][-1],
+                   urcrnrlat=wr['lats'][-1],
+                   resolution='h',
+                   projection='merc',
+                   ax=axes)
+
+    parallels = np.linspace(wr['lats'][0], wr['lats'][-1], 5)
+    meridians = np.linspace(wr['lons'][0], wr['lons'][-1], 5)
+
+    bmap.drawcoastlines()
+    bmap.drawparallels(parallels, labels=[True, False, False, False],
+                       fmt="%.2f", fontsize=9)
+    bmap.drawmeridians(meridians, labels=[False, False, False, True],
+                       fmt="%.2f", fontsize=9)
+    bmap.drawmapboundary()
+
+    lon_mesh, lat_mesh = np.meshgrid(wr['lons'], wr['lats'])
+    image = bmap.pcolormesh(lon_mesh,
+                            lat_mesh,
+                            np.ma.masked_values(wr['data'], 0),
+                            latlon=True,
+                            cmap=cm.Spectral_r,
+                            vmin=0)
+
+    cbar = fig.colorbar(image, pad=0.07)
+    cbar.set_label(r'Rainfall / mm hr$^{-1}$')
+
+    title = ('Rainfall Radar Image ({0})'
+             .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
+
+    axes.set_title(title)
+    fig.tight_layout()
+
+    if fname:
+        fig.savefig(fname, bbox_inches='tight')
+    else:
+        plt.show()
+        plt.close()
+
+    return (fig, bmap)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -264,7 +333,21 @@ if __name__ == '__main__':
     plot_rainfall_correlation_subparser.add_argument('-o', '--output', action='store', default=None,
                                                      help='Output file name')
     plot_rainfall_correlation_subparser.add_argument('-r', '--rain-tol', default=0, type=float, action='store',
-                                                    help='Minimum rainfall level to plot in scatter chart.')
+                                                     help='Minimum rainfall level to plot in scatter chart.')
+
+    plot_radar_rainfall_subparser = subparsers.add_parser('weather',
+                                                          help='Plot a rainfall radar image.')
+    plot_radar_rainfall_subparser.set_defaults(func=_plot_weather)
+    plot_radar_rainfall_subparser.add_argument('date', default=None, nargs='?',
+                                               help=('The date and time (HH:MM) to plot'
+                                                     + ' the weather for in ISO8601 format'))
+    plot_radar_rainfall_subparser.add_argument('-o', '--output',
+                                               action='store',
+                                               default=None,
+                                               help='Output file name')
+    plot_radar_rainfall_subparser.add_argument('-f', '--full',
+                                               action='store_true',
+                                               help='Plot the entire radar image instead of just the project region.')
 
     args = parser.parse_args()
     os.chdir(args.d)
