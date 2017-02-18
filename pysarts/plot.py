@@ -58,7 +58,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
         ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
         ifg = processing.open_ifg_netcdf(ifg_path)
 
-    fig = plot_ifg(ifg)
+    fig, _ = plot_ifg(ifg)
     if fname:
         fig.savefig(fname, bbox_inches='tight')
     else:
@@ -67,10 +67,14 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
 
     return None
 
-def plot_ifg(ifg):
+def plot_ifg(ifg, axes=None):
     """Plot an ifg dictionary. Returns a figure handle"""
-    fig = plt.figure()
-    axes = fig.add_subplot(1, 1, 1)
+    if axes:
+        fig = axes.get_figure()
+    else:
+        fig = plt.figure()
+        axes = fig.add_subplot(1, 1, 1)
+
     bmap = Basemap(llcrnrlon=ifg['lons'][0],
                    llcrnrlat=ifg['lats'][0],
                    urcrnrlon=ifg['lons'][-1],
@@ -98,7 +102,7 @@ def plot_ifg(ifg):
                             vmin=vmin,
                             vmax=vmax)
 
-    cbar = fig.colorbar(image, pad=0.07)
+    cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label('LOS Delay / cm')
 
     title = 'Unwrapped Interferogram\nMaster: {0}\nSlave: {1}'.format(
@@ -107,7 +111,7 @@ def plot_ifg(ifg):
     axes.set_title(title)
     fig.tight_layout()
 
-    return fig
+    return fig, bmap
 
 def plot_time_series_ifg(master_date, slave_date, fname=None):
     if isinstance(master_date, date):
@@ -138,7 +142,7 @@ def plot_time_series_ifg(master_date, slave_date, fname=None):
         'slave_date': datetime.strptime(slave_date, '%Y%m%d').date()
     }
 
-    fig = plot_ifg(ifg)
+    fig, _ = plot_ifg(ifg)
     if fname:
         fig.savefig(fname, bbox_inches='tight')
     else:
@@ -173,7 +177,7 @@ def plot_master_atmosphere(master_date, fname=None):
         'slave_date': datetime.today().date() # Dummy value
     }
 
-    fig = plot_ifg(ifg)
+    fig, _ = plot_ifg(ifg)
     axes = fig.get_axes()[0]
     axes.set_title('Master Atmosphere\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
     if fname:
@@ -231,31 +235,14 @@ def plot_master_atmosphere_vs_rainfall(master_date, rain_tol=0, fname=None):
         plt.show()
 
 
-def _plot_weather(args):
-    if args.date:
-        plot_weather(args.date, args.full, args.output)
+def plot_wr(wr, axes=None):
+    """Plot a weather radar dictionary. Returns a figure handle and a basemap object."""
+    if axes:
+        fig = axes.get_figure()
     else:
-        plot_weather(config.MASTER_DATE, args.full, args.output)
+        fig = plt.figure()
+        axes = fig.add_subplot(1, 1, 1)
 
-
-def plot_weather(wr_date, full=False, fname=None):
-    """Plot a weather radar image.
-    """
-    if isinstance(wr_date, str):
-        wr_date = datetime.strptime(wr_date, '%Y%m%dT%H%M')
-
-    # Load the weather radar image
-    wr_path = workflow.find_closest_weather_radar_file(wr_date)
-    wr = nimrod.load_from_netcdf(wr_path)
-
-    if not full:
-        # Clip image to target region
-        lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
-        lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
-        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
-
-    fig = plt.figure()
-    axes = fig.add_subplot(1, 1, 1)
     bmap = Basemap(llcrnrlon=wr['lons'][0],
                    llcrnrlat=wr['lats'][0],
                    urcrnrlon=wr['lons'][-1],
@@ -282,14 +269,42 @@ def plot_weather(wr_date, full=False, fname=None):
                             cmap=cm.Spectral_r,
                             vmin=0)
 
-    cbar = fig.colorbar(image, pad=0.07)
+    cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label(r'Rainfall / mm hr$^{-1}$')
 
-    title = ('Rainfall Radar Image ({0})'
+    title = ('Rainfall Radar Image\n({0})'
              .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
 
     axes.set_title(title)
     fig.tight_layout()
+
+    return (fig, bmap)
+
+
+def _plot_weather(args):
+    if args.date:
+        plot_weather(args.date, args.full, args.output)
+    else:
+        plot_weather(config.MASTER_DATE, args.full, args.output)
+
+
+def plot_weather(wr_date, full=False, fname=None):
+    """Plot a weather radar image.
+    """
+    if isinstance(wr_date, str):
+        wr_date = datetime.strptime(wr_date, '%Y%m%dT%H%M')
+
+    # Load the weather radar image
+    wr_path = workflow.find_closest_weather_radar_file(wr_date)
+    wr = nimrod.load_from_netcdf(wr_path)
+
+    if not full:
+        # Clip image to target region
+        lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
+        lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
+        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+
+    fig, _ = plot_wr(wr)
 
     if fname:
         fig.savefig(fname, bbox_inches='tight')
@@ -297,7 +312,72 @@ def plot_weather(wr_date, full=False, fname=None):
         plt.show()
         plt.close()
 
-    return (fig, bmap)
+
+def _plot_profile(args):
+    plot_profile(config.MASTER_DATE, args.longitude, args.output)
+
+def plot_profile(master_date, longitude, fname=None):
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%dT%H%M')
+
+    fig = plt.figure()
+    ifg_ax = plt.subplot2grid((2, 2), (0, 0))
+    wr_ax = plt.subplot2grid((2, 2), (0, 1))
+    profile_ax = plt.subplot2grid((2, 2), (1, 0), colspan=2)
+
+    # Load master atmosphere for master date.
+    master_atmosphere = np.load(os.path.join(config.SCRATCH_DIR,
+                                             'master_atmosphere',
+                                             master_date.strftime('%Y%m%d') + '.npy'),
+                                mmap_mode='r')
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': master_atmosphere,
+        'master_date': master_date,
+        'slave_date': datetime.today().date()
+    }
+
+    # Load weather radar image and clip.
+    lon_bounds = (np.amin(ifg['lons']), np.amax(ifg['lons']))
+    lat_bounds = (np.amin(ifg['lats']), np.amax(ifg['lats']))
+    wr = nimrod.load_from_netcdf(workflow.find_closest_weather_radar_file(master_date))
+    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+
+    # Plot and configure IFG
+    _, bmap_ifg = plot_ifg(ifg, axes=ifg_ax)
+    ifg_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
+    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white')
+    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1)
+
+    # Plot and configure weather radar image
+    _, bmap_wr = plot_wr(wr, axes=wr_ax)
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white')
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1)
+
+    # Plot the profile
+    ## LOS Delay
+    ifg_lon_idx = np.argmin(np.absolute(ifg['lons'] - longitude))
+    wr_lon_idx = np.argmin(np.absolute(wr['lons'] - longitude))
+    profile_ax.plot(ifg['lats'], ifg['data'][:, ifg_lon_idx])
+    profile_ax.set_ylabel('LOS Delay / cm')
+    profile_ax.set_xlabel(r'Latitude / $\degree$')
+
+    ## Rainfall
+    profile_ax_rain = profile_ax.twinx()
+    profile_ax_rain.plot(wr['lats'], wr['data'][:, wr_lon_idx], color='orange')
+    profile_ax_rain.tick_params('y', colors='orange')
+    profile_ax_rain.set_ylabel(r'Rainfall / mm hr$^{-1}$')
+
+    if fname:
+        fig.savefig(fname, bbox_inches='tight')
+    else:
+        plt.show()
+        plt.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
@@ -348,6 +428,22 @@ if __name__ == '__main__':
     plot_radar_rainfall_subparser.add_argument('-f', '--full',
                                                action='store_true',
                                                help='Plot the entire radar image instead of just the project region.')
+
+    plot_profile_subparser = subparsers.add_parser('profile',
+                                                  help='Plot atmosphere LOS delay and rainfall along a profile')
+    plot_profile_subparser.set_defaults(func=_plot_profile)
+    plot_profile_subparser.add_argument('--longitude',
+                                        action='store',
+                                        default=None,
+                                        help='The line of longitude to plot along.',
+                                        nargs=1,
+                                        type=float,
+                                        required=True)
+    plot_profile_subparser.add_argument('-o', '--output',
+                                        action='store',
+                                        default=None,
+                                        help='Output file name')
+
 
     args = parser.parse_args()
     os.chdir(args.d)
