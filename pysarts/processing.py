@@ -129,7 +129,7 @@ def resample_ifg(ifg, delta_x, delta_y):
     None
     """
     # Convert resolutions to degrees
-    metre_to_deg = lambda x: x / 111_110
+    metre_to_deg = lambda x: x / 111110
     delta_x_deg = metre_to_deg(delta_x)
     delta_y_deg = metre_to_deg(delta_y)
 
