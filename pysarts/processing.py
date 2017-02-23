@@ -55,9 +55,16 @@ def open_ifg_netcdf(path):
     """
     ifg = {}
     with Dataset(path) as ifg_cdf:
-        ifg['lons'] = ifg_cdf.variables['x'][:]
-        ifg['lats'] = ifg_cdf.variables['y'][:]
-        ifg['data'] = ifg_cdf.variables['z'][:]
+        if 'Band1' in ifg_cdf.variables:
+            # Read ISCE converted NetCDF
+            ifg['lons'] = ifg_cdf.variables['lon'][:]
+            ifg['lats'] = ifg_cdf.variables['lat'][:]
+            ifg['data'] = ifg_cdf.variables['Band1'][:]
+        else:
+            # Try reading a generic NetCDF
+            ifg['lons'] = ifg_cdf.variables['x'][:]
+            ifg['lats'] = ifg_cdf.variables['y'][:]
+            ifg['data'] = ifg_cdf.variables['z'][:]
 
     # Get master and slave dates
     ifg['master_date'], ifg['slave_date'] = util.extract_timestamp_from_ifg_name(path)
