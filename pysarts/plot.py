@@ -3,6 +3,7 @@
 """
 import os
 from datetime import date, datetime
+import logging
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -13,16 +14,35 @@ import yaml
 from . import processing
 from . import workflow
 from . import nimrod
+from . import util
 
 if __name__ == '__main__':
     from . import config
     import argparse
+
 
 def _parse_unwrapped_ifg_args(args):
     if args.time_series:
         plot_time_series_ifg(args.master, args.slave, args.output)
     else:
         plot_unwrapped_ifg(args.master, args.slave, args.output, args.resampled)
+
+
+def _plot_all_uifgs(args):
+    ifg_paths = workflow.find_ifgs()
+    date_pairings = [util.extract_timestamp_from_ifg_name(path) for path in ifg_paths]
+    for (master_date, slave_date) in date_pairings:
+        logging.info('Plotting master/slave pairing: {} / {}'.format(master_date, slave_date))
+        if args.output:
+            output_file = os.path.join(args.output,
+                                       (slave_date.strftime('%Y%m%d')
+                                        + '_'
+                                        + master_date.strftime('%Y%m%d')
+                                        + '.png'))
+            plot_unwrapped_ifg(master_date, slave_date, output_file, args.resampled)
+        else:
+            plot_unwrapped_ifg(master_date, slave_date, None, args.resampled)
+
 
 def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     """
@@ -37,9 +57,9 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     None
     """
     if isinstance(master_date, date):
-        master_date = date.strftime("%Y%m%d")
+        master_date = master_date.strftime("%Y%m%d")
     if isinstance(slave_date, date):
-        slave_date = date.strftime("%Y%m%d")
+        slave_date = slave_date.strftime("%Y%m%d")
 
     ifg_name = '{}_{}'.format(slave_date, master_date)
     ifg_path = ''
@@ -61,6 +81,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     fig, _ = plot_ifg(ifg)
     if fname:
         fig.savefig(fname, bbox_inches='tight')
+        plt.close()
     else:
         plt.show()
         plt.close()
@@ -79,7 +100,7 @@ def plot_ifg(ifg, axes=None):
                    llcrnrlat=ifg['lats'][0],
                    urcrnrlon=ifg['lons'][-1],
                    urcrnrlat=ifg['lats'][-1],
-                   resolution='i',
+                   resolution='f',
                    projection='merc',
                    ax=axes)
     parallels = np.linspace(ifg['lats'][0], ifg['lats'][-1], 5)
@@ -399,6 +420,14 @@ if __name__ == '__main__':
     plot_uifg_subparser.add_argument('-t', '--time-series', action='store_true',
                                      help='Plot inverted time series interferogram')
 
+    plot_uifg_all_subparser = subparsers.add_parser('uifg-all',
+                                                    help='Plot all unwrapped interferograms')
+    plot_uifg_all_subparser.set_defaults(func=_plot_all_uifgs)
+    plot_uifg_all_subparser.add_argument('-r', '--resampled', action='store_true',
+                                         help='Plot resampled/clipped interferograms')
+    plot_uifg_all_subparser.add_argument('-o', '--output', action='store', default=None,
+                                         help='Directory to save plots to')
+
     plot_master_atmosphere_subparser = subparsers.add_parser('master-atmos',
                                                              help='Plot master atmosphere for a date')
     plot_master_atmosphere_subparser.set_defaults(func=_plot_master_atmosphere)
@@ -448,5 +477,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.chdir(args.d)
     config.load_from_yaml('config.yml')
+    logging.basicConfig(level=config.LOG_LEVEL)
 
     args.func(args)
