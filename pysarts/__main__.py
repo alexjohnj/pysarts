@@ -57,7 +57,7 @@ clip_resample_parser = subparsers.add_parser('clip-resample',
                                              help='Clip and resample unwrapped interferograms')
 clip_resample_parser.set_defaults(func=workflow.execute_load_clip_resample_convert_step)
 invert_unwrapped_parser = subparsers.add_parser('invert',
-                                               help='Invert unwrapped time series interferograms')
+                                                help='Invert unwrapped time series interferograms')
 invert_unwrapped_parser.set_defaults(func=workflow.execute_invert_unwrapped_phase)
 calculate_master_atmos_parser = subparsers.add_parser('master-atmos',
                                                       help='Calculate the master atmosphere')
@@ -71,6 +71,10 @@ god_mode_parser = subparsers.add_parser('alldates',
                                         on all dates allowed in the
                                         configuration file.""")
 god_mode_parser.set_defaults(func=execute_on_all_slc_dates)
+
+train_export_parser = subparsers.add_parser('export-train',
+                                            help='Export files for processing with TRAIN')
+train_export_parser.set_defaults(func=workflow.execute_export_train)
 
 # Parse Arguments
 args = mainParser.parse_args()

@@ -10,6 +10,7 @@ import glob
 
 import numpy as np
 import yaml
+import scipy.io as scpio
 
 from . import config
 from . import inversion
@@ -259,3 +260,44 @@ def execute_master_atmosphere_rainfall_correlation():
 
     (r, p) = nimrod.calc_wr_ifg_correlation(wr, ifg, rain_tol=1)
     print('Correlation Coefficient: {}, P-Value: {}'.format(r, p))
+
+
+def execute_export_train():
+    """Exports parts of the pysarts project needed for TRAIN.
+
+    Parts exported are: IFG grid, ifg dates, UTC time of satellite pass.
+    """
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                  'grid.txt'))
+    lons, lats = np.meshgrid(lons, lats)
+    ifg_dates = [util.extract_timestamp_from_ifg_name(name) for name in find_ifgs()]
+
+    # Wrangle grid into TRAIN format
+    ll_matfile_data = np.stack((lons.ravel(), lats.ravel()), axis=1)
+
+    # Wrangle interferogram dates into TRAIN format. Train expects dates to be
+    # represented as integers in YYYYMMDD format. They should be in an Nx2
+    # matrix with master and slave dates in the first and second columns
+    # respectively.
+    ifg_numeric_dates = []
+    for (master_date, slave_date) in ifg_dates:
+        # Yuck
+        master_date_numeric = int(master_date.strftime('%Y%m%d'))
+        slave_date_numeric = int(slave_date.strftime('%Y%m%d'))
+        ifg_numeric_dates += [[master_date_numeric, slave_date_numeric]]
+
+    ifg_numeric_dates = np.array(ifg_numeric_dates)
+
+    # Wrangle UTC time of satellite pass into TRAIN format.
+    utc_sat_time = config.MASTER_DATE.strftime('%H:%M')
+
+    # Save output files
+    output_directory = os.path.join(config.SCRATCH_DIR, 'train')
+    os.makedirs(output_directory, exist_ok=True)
+    scpio.savemat(os.path.join(output_directory, 'll.mat'),
+                  {'lonlat': ll_matfile_data})
+    scpio.savemat(os.path.join(output_directory, 'ifgday.mat'),
+                  {'ifgday': ifg_numeric_dates})
+
+    with open(os.path.join(output_directory, 'utc_time.txt'), 'w') as f:
+        f.write(utc_sat_time)
