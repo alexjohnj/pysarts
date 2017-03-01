@@ -26,7 +26,7 @@ def find_ifgs_for_dates(ifg_dir, master_date, slc_dates=None):
     -------
     A list of files that are made up of images from `master_date` or `slc_dates`.
     """
-    ifg_files = glob.glob(os.path.join(ifg_dir, '*.nc'))
+    ifg_files = glob.glob(os.path.join(ifg_dir, '**/*.nc'), recursive=True)
 
     if not slc_dates:
         return ifg_files
