@@ -297,11 +297,12 @@ def execute_export_train():
 % *****CREATE A FILE CALLED custom_setup.m FOR CUSTOM INITIALISATION*****
 setparm_aps('ll_matfile', [pwd '/ll.mat'])
 setparm_aps('ifgday_matfile', [pwd '/ifgday.mat'])
-setparm_aps('UTC_sat', '{:s}')
+setparm_aps('UTC_sat', '{utctime:s}')
+setparm_aps('demfile', {demfile:s}')
 if exist('custom_setup.m', 'file') == 2
   custom_setup()
 end
-""".format(utc_sat_time)
+""".format(utctime=utc_sat_time, demfile=os.path.abspath(config.DEM_PATH))
 
     # Save output files
     output_directory = os.path.join(config.SCRATCH_DIR, 'train')

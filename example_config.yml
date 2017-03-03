@@ -17,6 +17,8 @@ files:
   # The directory containing weather radar images sorted into subdirectories by
   # Year/Month/YYYYMMDDHHMM
   wr_dir: ./weather_radar
+  # Path to a digital elevation model covering the interferogram region.
+  dem: ./dem.nc
 
 # Define the study region by a bounding box. If this setting isn't included the
 # entire region of the interferograms will be used.
