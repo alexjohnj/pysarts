@@ -305,9 +305,9 @@ def execute_export_train():
 setparm_aps('ll_matfile', [pwd '/ll.mat'])
 setparm_aps('ifgday_matfile', [pwd '/ifgday.mat'])
 setparm_aps('UTC_sat', '{utctime:s}')
-setparm_aps('demfile', {demfile:s}')
-setparm_aps('region_lon_range', [{lon_min:f} {lon_max:f}]
-setparm_aps('region_lat_range', [{lat_min:f} {lat_max:f}]
+setparm_aps('demfile', '{demfile:s}')
+setparm_aps('region_lon_range', [{lon_min:f} {lon_max:f}])
+setparm_aps('region_lat_range', [{lat_min:f} {lat_max:f}])
 if exist('custom_setup.m', 'file') == 2
   custom_setup()
 end
