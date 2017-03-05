@@ -177,7 +177,9 @@ def execute_invert_unwrapped_phase():
     This steps takes the interferograms and inverts the timeseries relative to
     the master date. The time series is saved to the `uifg_ts` directory as a 3D
     npy array called MASTER_DATE.npy. Also saved is a metadata file containing
-    the dates of each index along the third dimension of the array.
+    the dates of each index along the third dimension of the array. A second
+    file containing the perpendicular baselines for each inverted interferogram
+    is also generated.
 
     Input interferograms are loaded from the uifg_resampled directory. Grid
     dimensions are loaded from 'grid.txt'.
@@ -188,6 +190,7 @@ def execute_invert_unwrapped_phase():
                                     config.MASTER_DATE.strftime('%Y%m%d'))
     output_file_name = output_file_base + '.npy'
     output_file_meta = output_file_base + '.yml'
+    output_file_bperp = output_file_base + '_baselines' + '.txt'
     ifg_paths = glob.glob(os.path.join(config.SCRATCH_DIR,
                                        'uifg_resampled',
                                        '*.npy'))
@@ -206,6 +209,15 @@ def execute_invert_unwrapped_phase():
     dates = inversion.calculate_inverse(ifg_paths, config.MASTER_DATE.date(), grid_shape, output_matrix)
     with open(output_file_meta, 'w') as f:
         yaml.dump(dates, f)
+
+    # Calculate the new baselines and save them to a file.
+    logging.info('Calculating perpendicular baselines')
+    baseline_zip = inversion.calculate_inverse_bperp(config.BPERP_FILE_PATH,
+                                                     config.MASTER_DATE.date())
+    with open(output_file_bperp, 'w') as f:
+        for (date, baseline) in baseline_zip:
+            datestamp = date.strftime('%Y%m%d')
+            f.write('{:s} {:.4f}\n'.format(datestamp, baseline))
 
 def execute_calculate_master_atmosphere():
     """Executes the third step of the processing flow.

@@ -1,6 +1,7 @@
 import logging
 from math import floor
 import tempfile
+from datetime import datetime
 
 import numpy as np
 
@@ -92,3 +93,49 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
 
     new_ifg_dates = sorted(list(set([date for pairs in ifg_date_pairs for date in pairs])))
     return new_ifg_dates
+
+
+def calculate_inverse_bperp(bfile, master_date):
+    """Calculate perpendicular baselines relative to a master date.
+
+    Arguments
+    --------
+    bfile : str
+      Path to a perpendicular baseline file.
+    master_date : datetime
+      The date to make everything relative to.
+
+    Returns a list of 2-tuples containing the slave date and the perpendicular
+    baseline for that date.
+
+    """
+    bperp_list = read_bperp_file(bfile)
+    dates = [(master, slave) for (master, slave, _) in bperp_list]
+
+    kernel = construct_kernel(dates, master_date)
+    data = [perp_base for (_, _, perp_base) in bperp_list]
+
+    new_perps = np.linalg.lstsq(kernel, data)[0]
+    perp_dates = sorted(list(set([date for pairs in dates for date in pairs])))
+
+    return zip(perp_dates, new_perps)
+
+def read_bperp_file(path):
+    """Loads perpendicular baselines from a column file.
+
+    The input file should have three columns. The master date (YYYYMMDD), the
+    slave date (YYYYMMDD) and the perpendicular baseline (master-slave).
+
+    Returns a list containing (master_date, slave_date, bperp).
+
+    """
+    bperp_list = []
+    bp_df = np.loadtxt(path)
+    for row in bp_df:
+        master_date = datetime.strptime(str(int(row[0])), '%Y%m%d')
+        slave_date = datetime.strptime(str(int(row[1])), '%Y%m%d')
+        perp_base = row[2]
+
+        bperp_list += [(master_date.date(), slave_date.date(), perp_base)]
+
+    return bperp_list
