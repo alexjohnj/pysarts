@@ -19,6 +19,9 @@ files:
   wr_dir: ./weather_radar
   # Path to a digital elevation model covering the interferogram region.
   dem: ./dem.nc
+  # A 3-column file containing the master date, slave date and the perpendicular
+  # baseline (master-slave)
+  baselines: ./baselines.txt
 
 # Define the study region by a bounding box. If this setting isn't included the
 # entire region of the interferograms will be used.

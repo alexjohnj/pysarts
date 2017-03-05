@@ -45,6 +45,10 @@ WEATHER_RADAR_DIR = './weather_radar'
 """Path to a NetCDF file containing a DEM covering the target region."""
 DEM_PATH = './dem.nc'
 
+"""Path to a plain text file containing the perpendicular baselines for the
+input interferograms."""
+BPERP_FILE_PATH = "./baselines.txt"
+
 """Resolution to resample to. Dict with keys 'delta_x' and 'delta_y' giving
 resolution in metres. Default to `None` indicating no resampling.
 
@@ -73,6 +77,7 @@ def load_from_yaml(path):
     global MASTER_DATE, DATES
     global UIFG_DIR, SCRATCH_DIR, WEATHER_RADAR_DIR
     global DEM_PATH
+    global BPERP_FILE_PATH
     global RESOLUTION, REGION
     global LOG_LEVEL
 
@@ -82,6 +87,7 @@ def load_from_yaml(path):
     SCRATCH_DIR = os.path.expanduser(conf['files'].get('scratch_dir', SCRATCH_DIR))
     WEATHER_RADAR_DIR = os.path.expanduser(conf['files'].get('wr_dir', WEATHER_RADAR_DIR))
     DEM_PATH = os.path.expanduser(conf['files'].get('dem', DEM_PATH))
+    BPERP_FILE_PATH = os.path.expanduser(conf['files'].get('baselines', BPERP_FILE_PATH))
     RESOLUTION = conf.get('resolution', RESOLUTION)
     LOG_LEVEL = conf.get('log_level', LOG_LEVEL)
     REGION = conf.get('region', REGION)
