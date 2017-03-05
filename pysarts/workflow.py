@@ -7,6 +7,7 @@ import logging
 import os
 from datetime import datetime
 import glob
+from multiprocessing.pool import Pool
 
 import numpy as np
 import yaml
@@ -44,6 +45,7 @@ def load_clip_resample(path):
     SHOULD_CLIP = config.REGION != None
     SHOULD_RESAMPLE = config.RESOLUTION != None
 
+    logging.info('Processing %s', os.path.splitext(os.path.basename(path))[0])
     logging.debug('Loading %s', path)
     ifg = processing.open_ifg_netcdf(path)
 
@@ -61,7 +63,14 @@ def load_clip_resample(path):
     else:
         logging.debug('Resampling disabled')
 
-    return ifg
+    output_dir = os.path.join(config.SCRATCH_DIR, 'uifg_resampled')
+    save_ifg_to_npy(ifg, output_dir)
+
+    logging.info('Extracting grid from %s',
+                 os.path.splitext(os.path.basename(path))[0])
+    extract_grid_from_ifg(ifg, os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+
+    return None
 
 def save_ifg_to_npy(ifg, out_dir):
     """Saves an ifg dict as a Numpy array.
@@ -158,16 +167,8 @@ def execute_load_clip_resample_convert_step():
 
     """
     ifg_paths = find_ifgs()
-    ifg = {}
-    for path in ifg_paths:
-        logging.info('Processing %s', os.path.splitext(os.path.basename(path))[0])
-        ifg = load_clip_resample(path)
-        output_dir = os.path.join(config.SCRATCH_DIR, 'uifg_resampled')
-        save_ifg_to_npy(ifg, output_dir)
-
-    # Save grid details
-    logging.info('Extracting grid')
-    extract_grid_from_ifg(ifg, os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+    with Pool() as p:
+        p.map(load_clip_resample, ifg_paths)
 
     return None
 
