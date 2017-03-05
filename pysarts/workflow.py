@@ -219,19 +219,29 @@ def execute_invert_unwrapped_phase():
             datestamp = date.strftime('%Y%m%d')
             f.write('{:s} {:.4f}\n'.format(datestamp, baseline))
 
-def execute_calculate_master_atmosphere():
+def execute_calculate_dem_matmosphere_error():
     """Executes the third step of the processing flow.
 
-    This step calculates the master atmosphere using the time series calculated
-    in step 2. It loads the time series saved in 'uifg_ts/MASTER_DATE.npy' and
-    saves the master atmosphere to 'master_atmosphere/MASTER_DATE.npy'.
+    This step calculates the master atmosphere and DEM errors using the time
+    series calculated in step 2. It loads the time series saved in
+    'uifg_ts/MASTER_DATE.npy'. It saves the master atmosphere to
+    'master_atmosphere/MASTER_DATE.npy'. It saves the DEM error to
+    'dem_error/MASTER_DATE.npy'.
 
     """
-    os.makedirs(os.path.join(config.SCRATCH_DIR, 'master_atmosphere'), exist_ok=True)
-    output_file_name = os.path.join(config.SCRATCH_DIR,
-                                    'master_atmosphere',
-                                    config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
+    # Create output file paths
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'master_atmosphere'),
+                exist_ok=True)
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'dem_error'),
+                exist_ok=True)
+    output_master_atmos_fname = os.path.join(config.SCRATCH_DIR,
+                                             'master_atmosphere',
+                                             config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
+    output_dem_error_fname = os.path.join(config.SCRATCH_DIR,
+                                          'dem_error',
+                                          config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
 
+    # Load required data
     ts_ifgs = np.load(os.path.join(config.SCRATCH_DIR,
                                    'uifg_ts',
                                    config.MASTER_DATE.strftime('%Y%m%d') + '.npy'),
@@ -242,10 +252,18 @@ def execute_calculate_master_atmosphere():
                            config.MASTER_DATE.strftime('%Y%m%d') + '.yml')) as f:
         ts_dates = yaml.safe_load(f)
 
-    logging.info('Starting master atmosphere inversion for %s', config.MASTER_DATE.strftime('%Y-%m-%d'))
-    master_atmosphere = timeseries.calculate_master_atmosphere(ts_ifgs, ts_dates,
-                                                               config.MASTER_DATE.date())
-    np.save(output_file_name, master_atmosphere)
+    ts_baselines = np.loadtxt(os.path.join(config.SCRATCH_DIR,
+                                           'uifg_ts',
+                                           config.MASTER_DATE.strftime('%Y%m%d') + '_baselines.txt'),
+                              usecols=1)
+    logging.info('Calculating DEM error and master atmosphere for %s',
+                 config.MASTER_DATE.strftime('%Y-%m-%d'))
+    master_atmosphere, dem_error = timeseries.calculate_master_atmosphere(ts_ifgs,
+                                                                          ts_baselines,
+                                                                          ts_dates,
+                                                                          config.MASTER_DATE.date())
+    np.save(output_master_atmos_fname, master_atmosphere)
+    np.save(output_dem_error_fname, dem_error)
 
 def execute_master_atmosphere_rainfall_correlation():
     """Calculate the correlation coefficient between weather radar rainfall and

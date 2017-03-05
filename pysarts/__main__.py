@@ -11,7 +11,7 @@ from . import util
 def execute_all_steps():
     workflow.execute_load_clip_resample_convert_step()
     workflow.execute_invert_unwrapped_phase()
-    workflow.execute_calculate_master_atmosphere()
+    workflow.execute_calculate_dem_matmosphere_error()
 
 def execute_on_all_slc_dates():
     """Executes the full processing stack on all the SLC dates in the UIFG_DIR
@@ -35,7 +35,7 @@ def execute_on_all_slc_dates():
         logging.info('Switching master date to %s', date.strftime('%Y-%m-%d'))
         workflow.config.MASTER_DATE = datetime.combine(date, slc_time)
         workflow.execute_invert_unwrapped_phase()
-        workflow.execute_calculate_master_atmosphere()
+        workflow.execute_calculate_dem_matmosphere_error()
 
 mainParser = argparse.ArgumentParser(prog='pysarts')
 mainParser.set_defaults(func=execute_all_steps)
@@ -59,9 +59,9 @@ clip_resample_parser.set_defaults(func=workflow.execute_load_clip_resample_conve
 invert_unwrapped_parser = subparsers.add_parser('invert',
                                                 help='Invert unwrapped time series interferograms')
 invert_unwrapped_parser.set_defaults(func=workflow.execute_invert_unwrapped_phase)
-calculate_master_atmos_parser = subparsers.add_parser('master-atmos',
-                                                      help='Calculate the master atmosphere')
-calculate_master_atmos_parser.set_defaults(func=workflow.execute_calculate_master_atmosphere)
+calculate_master_atmos_parser = subparsers.add_parser('dem-master-atmos',
+                                                      help='Calculate the DEM error and master atmosphere.')
+calculate_master_atmos_parser.set_defaults(func=workflow.execute_calculate_dem_matmosphere_error)
 weather_radar_parser = subparsers.add_parser('radar-correlation',
                                              help='Calculate the correlation between weather radar rainfall and master atmosphere.')
 weather_radar_parser.set_defaults(func=workflow.execute_master_atmosphere_rainfall_correlation)
