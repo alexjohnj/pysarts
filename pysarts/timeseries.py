@@ -1,8 +1,8 @@
 import logging
 import numpy as np
 
-def calculate_master_atmosphere(ts_ifgs, baselines, dates, master_date):
-    """Calculate the master atmosphere for a timeseries.
+def calculate_dem_master_atmosphere(ts_ifgs, baselines, dates, master_date):
+    """Calculate the DEM error and master atmosphere for a date in a timeseries.
 
     Arguments
     ---------

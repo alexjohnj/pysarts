@@ -258,10 +258,10 @@ def execute_calculate_dem_matmosphere_error():
                               usecols=1)
     logging.info('Calculating DEM error and master atmosphere for %s',
                  config.MASTER_DATE.strftime('%Y-%m-%d'))
-    master_atmosphere, dem_error = timeseries.calculate_master_atmosphere(ts_ifgs,
-                                                                          ts_baselines,
-                                                                          ts_dates,
-                                                                          config.MASTER_DATE.date())
+    master_atmosphere, dem_error = timeseries.calculate_dem_master_atmosphere(ts_ifgs,
+                                                                              ts_baselines,
+                                                                              ts_dates,
+                                                                              config.MASTER_DATE.date())
     np.save(output_master_atmos_fname, master_atmosphere)
     np.save(output_dem_error_fname, dem_error)
 
