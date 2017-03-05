@@ -4,6 +4,7 @@
 import os
 from datetime import date, datetime
 import logging
+from multiprocessing.pool import Pool
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -31,17 +32,22 @@ def _parse_unwrapped_ifg_args(args):
 def _plot_all_uifgs(args):
     ifg_paths = workflow.find_ifgs()
     date_pairings = [util.extract_timestamp_from_ifg_name(path) for path in ifg_paths]
+
+    # Build an arguments list so multiple plots can be run in parallel.
+    args_list = []
     for (master_date, slave_date) in date_pairings:
-        logging.info('Plotting master/slave pairing: {} / {}'.format(master_date, slave_date))
+        output_file = None
         if args.output:
             output_file = os.path.join(args.output,
                                        (slave_date.strftime('%Y%m%d')
                                         + '_'
                                         + master_date.strftime('%Y%m%d')
                                         + '.png'))
-            plot_unwrapped_ifg(master_date, slave_date, output_file, args.resampled)
-        else:
-            plot_unwrapped_ifg(master_date, slave_date, None, args.resampled)
+
+        args_list += [(master_date, slave_date, output_file, args.resampled)]
+
+    with Pool() as p:
+        p.starmap(plot_unwrapped_ifg, args_list)
 
 
 def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
@@ -61,6 +67,8 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     if isinstance(slave_date, date):
         slave_date = slave_date.strftime("%Y%m%d")
 
+    logging.info('Plotting master/slave pairing: {} / {}'.format(master_date,
+                                                                 slave_date))
     ifg_name = '{}_{}'.format(slave_date, master_date)
     ifg_path = ''
     ifg = {}
@@ -187,7 +195,7 @@ def plot_dem_error(master_date, fname=None):
                                      master_date + '.npy'),
                         mmap_mode='r')
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
-                                              'grid.txt'))
+                                                           'grid.txt'))
     ifg = {
         'lons': lons,
         'lats': lats,
@@ -478,7 +486,7 @@ if __name__ == '__main__':
     plot_dem_error_subparser.set_defaults(func=_plot_dem_error)
     plot_dem_error_subparser.add_argument('master_date', default=None, nargs='?')
     plot_dem_error_subparser.add_argument('-o', '--output', action='store', default=None,
-                                                  help='Output file name')
+                                          help='Output file name')
 
     plot_rainfall_correlation_subparser = subparsers.add_parser('radar-correlation',
                                                                 help='Plot radar rainfall correlation for a date')
@@ -504,7 +512,7 @@ if __name__ == '__main__':
                                                help='Plot the entire radar image instead of just the project region.')
 
     plot_profile_subparser = subparsers.add_parser('profile',
-                                                  help='Plot atmosphere LOS delay and rainfall along a profile')
+                                                   help='Plot atmosphere LOS delay and rainfall along a profile')
     plot_profile_subparser.set_defaults(func=_plot_profile)
     plot_profile_subparser.add_argument('--longitude',
                                         action='store',
