@@ -170,12 +170,48 @@ def plot_time_series_ifg(master_date, slave_date, fname=None):
         plt.show()
         plt.close()
 
+
+def _plot_dem_error(args):
+    if args.master_date:
+        plot_dem_error(args.master_date, args.output)
+    else:
+        plot_dem_error(config.MASTER_DATE.date(), args.output)
+
+
+def plot_dem_error(master_date, fname=None):
+    if isinstance(master_date, date):
+        master_date = master_date.strftime('%Y%m%d')
+
+    dem_error = np.load(os.path.join(config.SCRATCH_DIR,
+                                     'dem_error',
+                                     master_date + '.npy'),
+                        mmap_mode='r')
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                              'grid.txt'))
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': dem_error,
+        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
+        'slave_date': datetime.today().date()  # Dummy value
+    }
+
+    fig, _ = plot_ifg(ifg)
+    axes = fig.get_axes()[0]
+    axes.set_title('DEM Error\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
+    if fname:
+        fig.savefig(fname, bbox_inches='tight')
+    else:
+        plt.show()
+
+
 def _plot_master_atmosphere(args):
     """Plot the master atmosphere from the command line."""
     if args.master_date:
         plot_master_atmosphere(args.master_date, args.output)
     else:
         plot_master_atmosphere(config.MASTER_DATE.date(), args.output)
+
 
 def plot_master_atmosphere(master_date, fname=None):
     """Plot the master atmosphere for a given date."""
@@ -205,6 +241,8 @@ def plot_master_atmosphere(master_date, fname=None):
         fig.savefig(fname, bbox_inches='tight')
     else:
         plt.show()
+
+
 def _plot_master_atmosphere_vs_rainfall(args):
     """Interactively plot master atmosphere vs. rainfall rate."""
     if args.master_date:
@@ -433,6 +471,13 @@ if __name__ == '__main__':
     plot_master_atmosphere_subparser.set_defaults(func=_plot_master_atmosphere)
     plot_master_atmosphere_subparser.add_argument('master_date', default=None, nargs='?')
     plot_master_atmosphere_subparser.add_argument('-o', '--output', action='store', default=None,
+                                                  help='Output file name')
+
+    plot_dem_error_subparser = subparsers.add_parser('dem-error',
+                                                     help='Plot DEM error for a date')
+    plot_dem_error_subparser.set_defaults(func=_plot_dem_error)
+    plot_dem_error_subparser.add_argument('master_date', default=None, nargs='?')
+    plot_dem_error_subparser.add_argument('-o', '--output', action='store', default=None,
                                                   help='Output file name')
 
     plot_rainfall_correlation_subparser = subparsers.add_parser('radar-correlation',
