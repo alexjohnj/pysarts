@@ -359,8 +359,13 @@ def plot_weather(wr_date, full=False, fname=None):
         wr_date = datetime.strptime(wr_date, '%Y%m%dT%H%M')
 
     # Load the weather radar image
-    wr_path = workflow.find_closest_weather_radar_file(wr_date)
-    wr = nimrod.load_from_netcdf(wr_path)
+    wr_before, wr_after = workflow.find_closest_weather_radar_files(wr_date)
+
+    if wr_before != wr_after:
+        logging.warning('Found two different radar images near %s. Plotting the first one',
+                        wr_date)
+
+    wr = nimrod.load_from_netcdf(wr_before)
 
     if not full:
         # Clip image to target region
@@ -405,22 +410,29 @@ def plot_profile(master_date, longitude, fname=None):
         'slave_date': datetime.today().date()
     }
 
-    # Load weather radar image and clip.
+    # Load weather radar image, clip and resample to IFG resolution.
     lon_bounds = (np.amin(ifg['lons']), np.amax(ifg['lons']))
     lat_bounds = (np.amin(ifg['lats']), np.amax(ifg['lats']))
-    wr = nimrod.load_from_netcdf(workflow.find_closest_weather_radar_file(master_date))
-    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+
+    wr_before_path, wr_after_path = workflow.find_closest_weather_radar_files(master_date)
+    wr_before = nimrod.load_from_netcdf(wr_before_path)
+    wr_after = nimrod.load_from_netcdf(wr_after_path)
+
+    nimrod.clip_wr(wr_before, lon_bounds, lat_bounds)
+    nimrod.clip_wr(wr_after, lon_bounds, lat_bounds)
+    wr = nimrod.interp_radar(wr_before, wr_after, config.MASTER_DATE)
+    wr = nimrod.resample_wr(wr, ifg['lons'], ifg['lats'])
 
     # Plot and configure IFG
     _, bmap_ifg = plot_ifg(ifg, axes=ifg_ax)
     ifg_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
-    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white')
-    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1)
+    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=ifg_ax)
+    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=ifg_ax)
 
     # Plot and configure weather radar image
     _, bmap_wr = plot_wr(wr, axes=wr_ax)
-    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white')
-    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1)
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=wr_ax)
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=wr_ax)
 
     # Plot the profile
     ## LOS Delay
