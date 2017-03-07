@@ -127,3 +127,44 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
     logging.debug('Calculating correlation coefficient')
 
     return stats.pearsonr(wr_data, ifg_data)
+
+
+def interp_radar(wr_before, wr_after, idate):
+    """Interpolate between two radar images at a given time.
+
+    Not really an interpolation, just a weighted sum of the two images.
+
+    Arguments
+    ---------
+    wr_before : dict
+      A dictionary with the keys `data` and `date` where `date` is before
+      `idate`. `data` is an NxM ndarray.
+    wr_after : dict
+      A dictionary with the keys `data` and `date` where `date` is after
+      `idate`. Data is an NxM ndarray.
+    idate : datetime
+      The date to "interpolate" the images to.
+
+    Returns
+    -------
+    iwr : dict
+      An interpolated weather radar image. Is a copy of `wr_before` with the
+      `data` and `date` keys modified. The key `interpolated: True` is added.
+    """
+    if wr_before['data'].size != wr_after['data'].size:
+        raise ValueError('Dimensions of weather radar images do not match')
+
+    if not wr_before['date'] <= idate <= wr_after['date']:
+        raise ValueError('Interpolation date does not lie between known dates')
+
+    time_delta = (wr_after['date'] - wr_before['date']).total_seconds()
+    before_delta = (idate - wr_before['date']).total_seconds()
+    before_factor = 1 - (before_delta / time_delta)
+    logging.info('Weighting before image by a factor of %.2f', before_factor)
+
+    iwr = wr_before.copy()
+    iwr['data'] = before_factor * wr_before['data'] + (1 - before_factor) * wr_after['data']
+    iwr['date'] = idate
+    iwr['interpolated'] = True
+
+    return iwr
