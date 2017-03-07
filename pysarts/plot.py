@@ -16,11 +16,8 @@ from . import processing
 from . import workflow
 from . import nimrod
 from . import util
-
-if __name__ == '__main__':
-    from . import config
-    import argparse
-
+from . import config
+import argparse
 
 def _parse_unwrapped_ifg_args(args):
     if args.time_series:
