@@ -336,8 +336,12 @@ def plot_wr(wr, axes=None):
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label(r'Rainfall / mm hr$^{-1}$')
 
-    title = ('Rainfall Radar Image\n({0})'
-             .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
+    if 'interpolated' in wr and wr['interpolated'] is True:
+        title = ('Rainfall Radar Image\n({0})[I]'
+                 .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
+    else:
+        title = ('Rainfall Radar Image\n({0})'
+                 .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
 
     axes.set_title(title)
     fig.tight_layout()
@@ -362,10 +366,12 @@ def plot_weather(wr_date, full=False, fname=None):
     wr_before, wr_after = workflow.find_closest_weather_radar_files(wr_date)
 
     if wr_before != wr_after:
-        logging.warning('Found two different radar images near %s. Plotting the first one',
+        logging.warning('Found two different radar images near %s. Interpolating',
                         wr_date)
 
-    wr = nimrod.load_from_netcdf(wr_before)
+    wr_before = nimrod.load_from_netcdf(wr_before)
+    wr_after = nimrod.load_from_netcdf(wr_after)
+    wr = nimrod.interp_radar(wr_before, wr_after, wr_date)
 
     if not full:
         # Clip image to target region
