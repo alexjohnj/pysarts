@@ -157,6 +157,9 @@ def interp_radar(wr_before, wr_after, idate):
     if not wr_before['date'] <= idate <= wr_after['date']:
         raise ValueError('Interpolation date does not lie between known dates')
 
+    if wr_before['date'] == wr_after['date']:
+        return wr_before
+
     time_delta = (wr_after['date'] - wr_before['date']).total_seconds()
     before_delta = (idate - wr_before['date']).total_seconds()
     before_factor = 1 - (before_delta / time_delta)
