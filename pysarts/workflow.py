@@ -134,11 +134,25 @@ def read_grid_from_file(path):
 
     return (lons, lats)
 
-def find_closest_weather_radar_file(master_date):
-    """Looks in the weather radar directory for the weather radar image closest
-    to the master date that occurs after it.
+def find_closest_weather_radar_files(master_date):
+    """Searches the weather radar directory for the closest weather radar images
+    before and after a date and time.
 
-    Returns the path to the closest radar image.
+    Returns
+    -------
+
+    before_path : str
+      A path to the closest weather radar image before the acquisition.
+    after_path : str
+      A path to the closest weather radar image after the acquisition.
+
+    Notes
+    -----
+    If a radar image before the date can not be found then the path to the one
+    after will be returned twice and vice-verca.
+
+    If an exact match is found for the given date, the same path will be
+    returned twice.
     """
     paths = glob.glob(os.path.join(config.WEATHER_RADAR_DIR, '**/*.nc'),
                       recursive=True)
@@ -149,13 +163,19 @@ def find_closest_weather_radar_file(master_date):
         dates += [datetime.strptime(filename, '%Y%m%d%H%M.nc')]
 
     time_deltas = [master_date - date for date in dates]
-    sorted_time_deltas = sorted(time_deltas)
-    sorted_time_deltas = [delta for delta in time_deltas if delta.total_seconds() <= 0]
+    shortest_delta_before = [d for d in sorted(time_deltas) if d.total_seconds() >= 0]
+    shortest_delta_after = [d for d in sorted(time_deltas) if d.total_seconds() <= 0]
 
-    logging.info('Closest weather radar image: %s', paths[time_deltas.index(sorted_time_deltas[0])])
-    return paths[time_deltas.index(sorted_time_deltas[0])]
+    wr_before_path = paths[time_deltas.index(shortest_delta_before[0])]
+    wr_after_path = paths[time_deltas.index(shortest_delta_after[-1])]
 
-### MAIN WORKFLOW STEPS
+    logging.info('Closest radar image before %s is %s', master_date, wr_before_path)
+    logging.info('Closest radar image after %s is %s', master_date, wr_after_path)
+
+    return (wr_before_path, wr_after_path)
+
+
+# MAIN WORKFLOW STEPS
 def execute_load_clip_resample_convert_step(args):
     """Execute the first step of the processing flow.
 
