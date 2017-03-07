@@ -136,7 +136,7 @@ def read_grid_from_file(path):
 
 def find_closest_weather_radar_file(master_date):
     """Looks in the weather radar directory for the weather radar image closest
-    to the master date.
+    to the master date that occurs after it.
 
     Returns the path to the closest radar image.
     """
@@ -148,8 +148,9 @@ def find_closest_weather_radar_file(master_date):
         filename = os.path.basename(path)
         dates += [datetime.strptime(filename, '%Y%m%d%H%M.nc')]
 
-    time_deltas = [abs(master_date - date) for date in dates]
+    time_deltas = [master_date - date for date in dates]
     sorted_time_deltas = sorted(time_deltas)
+    sorted_time_deltas = [delta for delta in time_deltas if delta.total_seconds() <= 0]
 
     logging.info('Closest weather radar image: %s', paths[time_deltas.index(sorted_time_deltas[0])])
     return paths[time_deltas.index(sorted_time_deltas[0])]
@@ -323,8 +324,8 @@ def execute_export_train():
     utc_sat_time = config.MASTER_DATE.strftime('%H:%M')
 
     # Calculate a region slightly larger than target region.
-    lon_min, lon_max = config.REGION['lon_min'] - 0.25, config.REGION['lon_max'] + 0.25
-    lat_min, lat_max = config.REGION['lat_min'] - 0.25, config.REGION['lat_max'] + 0.25
+    lon_min, lon_max = config.REGION['lon_min'], config.REGION['lon_max']
+    lat_min, lat_max = config.REGION['lat_min'], config.REGION['lat_max']
 
     # TODO: Implement a custom look angle file.
     # TODO: Implement a custom wavelength.
