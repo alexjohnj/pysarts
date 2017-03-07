@@ -303,15 +303,28 @@ def execute_master_atmosphere_rainfall_correlation(args):
                                     config.MASTER_DATE.strftime('%Y%m%d') + '.npy'))
     ifg = {'lons': lons, 'lats': lats, 'data': ifg_data}
 
-    # Load the corresponding weather radar image
-    closest_wrimage_path = find_closest_weather_radar_file(config.MASTER_DATE)
-    wr = nimrod.load_from_netcdf(closest_wrimage_path)
+    # Load the corresponding weather radar images
+    wr_before_path, wr_after_path = find_closest_weather_radar_files(config.MASTER_DATE)
+    wr_before = nimrod.load_from_netcdf(wr_before_path)
+    wr_after = nimrod.load_from_netcdf(wr_after_path)
+
+    # Clip images
     lon_bounds = (np.amin(lons), np.amax(lons))
     lat_bounds = (np.amin(lats), np.amax(lats))
-    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+    nimrod.clip_wr(wr_before, lon_bounds, lat_bounds)
+    nimrod.clip_wr(wr_after, lon_bounds, lat_bounds)
 
+    # Time interpolate images
+    wr = nimrod.interp_radar(wr_before, wr_after, config.MASTER_DATE)
+
+    # Leggo
     (r, p) = nimrod.calc_wr_ifg_correlation(wr, ifg, rain_tol=args.rain_tolerance)
-    print('Correlation Coefficient: {}, P-Value: {}'.format(r, p))
+    (r_before, p_before) = nimrod.calc_wr_ifg_correlation(wr_before, ifg, rain_tol=args.rain_tolerance)
+    (r_after, p_after) = nimrod.calc_wr_ifg_correlation(wr_after, ifg, rain_tol=args.rain_tolerance)
+    print('Correlation Coefficient (INTERP): {}, P-Value: {}'.format(r, p))
+    print('Correlation Coefficient (BEFORE): {}, P-Value: {}'.format(r_before, p_before))
+    print('Correlation Coefficient (AFTER): {}, P-Value: {}'.format(r_after, p_after))
+
 
 
 def execute_export_train(args):
