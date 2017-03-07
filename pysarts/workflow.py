@@ -156,7 +156,7 @@ def find_closest_weather_radar_file(master_date):
     return paths[time_deltas.index(sorted_time_deltas[0])]
 
 ### MAIN WORKFLOW STEPS
-def execute_load_clip_resample_convert_step():
+def execute_load_clip_resample_convert_step(args):
     """Execute the first step of the processing flow.
 
     This step finds all interferograms in the unwrapped interferogram directory
@@ -173,7 +173,7 @@ def execute_load_clip_resample_convert_step():
 
     return None
 
-def execute_invert_unwrapped_phase():
+def execute_invert_unwrapped_phase(args):
     """Executes the second step of the processing flow.
 
     This steps takes the interferograms and inverts the timeseries relative to
@@ -221,7 +221,7 @@ def execute_invert_unwrapped_phase():
             datestamp = date.strftime('%Y%m%d')
             f.write('{:s} {:.4f}\n'.format(datestamp, baseline))
 
-def execute_calculate_dem_matmosphere_error():
+def execute_calculate_dem_matmosphere_error(args):
     """Executes the third step of the processing flow.
 
     This step calculates the master atmosphere and DEM errors using the time
@@ -267,7 +267,7 @@ def execute_calculate_dem_matmosphere_error():
     np.save(output_master_atmos_fname, master_atmosphere)
     np.save(output_dem_error_fname, dem_error)
 
-def execute_master_atmosphere_rainfall_correlation():
+def execute_master_atmosphere_rainfall_correlation(args):
     """Calculate the correlation coefficient between weather radar rainfall and
     the master atmosphere.
 
@@ -290,11 +290,11 @@ def execute_master_atmosphere_rainfall_correlation():
     lat_bounds = (np.amin(lats), np.amax(lats))
     nimrod.clip_wr(wr, lon_bounds, lat_bounds)
 
-    (r, p) = nimrod.calc_wr_ifg_correlation(wr, ifg, rain_tol=1)
+    (r, p) = nimrod.calc_wr_ifg_correlation(wr, ifg, rain_tol=args.rain_tolerance)
     print('Correlation Coefficient: {}, P-Value: {}'.format(r, p))
 
 
-def execute_export_train():
+def execute_export_train(args):
     """Exports parts of the pysarts project needed for TRAIN.
 
     Parts exported are: IFG grid, ifg dates, UTC time of satellite pass.

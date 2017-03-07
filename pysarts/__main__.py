@@ -62,9 +62,15 @@ invert_unwrapped_parser.set_defaults(func=workflow.execute_invert_unwrapped_phas
 calculate_master_atmos_parser = subparsers.add_parser('dem-master-atmos',
                                                       help='Calculate the DEM error and master atmosphere.')
 calculate_master_atmos_parser.set_defaults(func=workflow.execute_calculate_dem_matmosphere_error)
+
 weather_radar_parser = subparsers.add_parser('radar-correlation',
                                              help='Calculate the correlation between weather radar rainfall and master atmosphere.')
 weather_radar_parser.set_defaults(func=workflow.execute_master_atmosphere_rainfall_correlation)
+weather_radar_parser.add_argument('-r', '--rain-tolerance',
+                                  action='store',
+                                  type=float,
+                                  default=0,
+                                  help='Minimum rainfall intensity to include in calculation')
 
 god_mode_parser = subparsers.add_parser('alldates',
                                         help="""Run the full processing workflow
@@ -84,4 +90,4 @@ workflow.load_config(args.config)
 if args.master:
     workflow.config.MASTER_DATE = datetime.strptime(args.master, '%Y%m%dT%H%M')
 
-args.func()
+args.func(args)
