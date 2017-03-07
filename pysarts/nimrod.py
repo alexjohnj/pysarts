@@ -82,9 +82,10 @@ def resample_wr(wr, new_lons, new_lats):
 
     return wr_new
 
+
 def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
-    """Calculates the correlation coefficient between a weather radar image and
-    an interferogram.
+    """Calculates the correlation coefficient between a weather radar image and an
+    interferogram.
 
     Arguments
     ---------
@@ -106,11 +107,12 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
 
     Notes
     -----
-    The interferogram will be resampled to match the resolution of the weather radar image.
-    """
-    if wr['lons'].size != ifg['lons'].size or wr['lats'].size != ifg['lats'].size:
-        ifg = resample_wr(ifg, wr['lons'], wr['lats']) # Confusing, I know, but it works
+    The weather radar image will be resampled to match the resolution of the
+    interferogram.
 
+    """
+    if wr['data'].size != ifg['data'].size:
+        wr = resample_wr(wr, ifg['lons'], ifg['lats'])
 
     # Filter pixels with rainfall below tolerance
     wr_below_tol_idxs = np.where(wr['data'].ravel() > rain_tol)
