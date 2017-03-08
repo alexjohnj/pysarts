@@ -420,13 +420,10 @@ def plot_profile(master_date, longitude, fname=None):
     lon_bounds = (np.amin(ifg['lons']), np.amax(ifg['lons']))
     lat_bounds = (np.amin(ifg['lats']), np.amax(ifg['lats']))
 
-    wr_before_path, wr_after_path = workflow.find_closest_weather_radar_files(master_date)
-    wr_before = nimrod.load_from_netcdf(wr_before_path)
-    wr_after = nimrod.load_from_netcdf(wr_after_path)
+    _, wr_after_path = workflow.find_closest_weather_radar_files(master_date)
+    wr = nimrod.load_from_netcdf(wr_after_path)
 
-    nimrod.clip_wr(wr_before, lon_bounds, lat_bounds)
-    nimrod.clip_wr(wr_after, lon_bounds, lat_bounds)
-    wr = nimrod.interp_radar(wr_before, wr_after, config.MASTER_DATE)
+    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
     wr = nimrod.resample_wr(wr, ifg['lons'], ifg['lats'])
 
     # Plot and configure IFG
