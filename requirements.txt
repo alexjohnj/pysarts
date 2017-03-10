@@ -8,5 +8,5 @@ pyparsing==2.1.10
 python-dateutil==2.6.0
 pytz==2016.10
 PyYAML==3.12
-scipy==0.18.1
+scipy==0.19
 six==1.10.0
