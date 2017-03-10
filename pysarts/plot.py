@@ -7,17 +7,21 @@ import logging
 from multiprocessing.pool import Pool
 
 import matplotlib.cm as cm
+import matplotlib.dates as mpl_dates
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
 import yaml
 
+from . import inversion
 from . import processing
 from . import workflow
 from . import nimrod
 from . import util
 from . import config
 import argparse
+
+plt.style.use('ggplot')
 
 def _parse_unwrapped_ifg_args(args):
     if args.time_series:
@@ -458,6 +462,71 @@ def plot_profile(master_date, longitude, fname=None):
         plt.close()
 
 
+def _plot_baseline_plot(args):
+    if args.master_date:
+        plot_baseline_plot(args.master_date, args.output)
+    else:
+        plot_baseline_plot(config.MASTER_DATE, args.output)
+
+
+def plot_baseline_plot(master_date, fname=None):
+    """Make a baseline plot using the baselines in config.BPERP_FILE_PATH"""
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%d').date()
+    if isinstance(master_date, datetime):
+        master_date = master_date.date()
+
+    baseline_list = inversion.calculate_inverse_bperp(config.BPERP_FILE_PATH,
+                                                      master_date)
+    baseline_list = list(baseline_list)
+    slave_dates = [date for (date, _) in baseline_list]
+    baselines = [baseline for (_, baseline) in baseline_list]
+    bperp_contents = inversion.read_bperp_file(config.BPERP_FILE_PATH)
+    ifg_master_dates = [date for (date, _, _) in bperp_contents]
+    ifg_slave_dates = [date for (_, date, _) in bperp_contents]
+    slc_dates = sorted(set(ifg_master_dates + ifg_slave_dates))
+
+    # Set up the plot
+    fig = plt.figure()
+    axes = fig.add_subplot(1, 1, 1)
+
+    # Plot lines connecting dates for interferograms
+    line_color = axes._get_lines.get_next_color()
+    line = None
+    for (master, slave) in zip(ifg_master_dates, ifg_slave_dates):
+        master_perp_base = baselines[slave_dates.index(master)]
+        slave_perp_base = baselines[slave_dates.index(slave)]
+
+        line = axes.plot_date([master, slave],
+                              [master_perp_base, slave_perp_base],
+                              '-',
+                              linewidth=0.5,
+                              color=line_color,
+                              label='Interferogram Pairing')
+
+    # Plot Acquisitions
+    xs = []  # Time baseline in days
+    ys = []  # Perpendicular baseline in metres
+    for slc_date in slc_dates:
+        xs += [slc_date]
+        ys += [baselines[slave_dates.index(slc_date)]]
+
+    points = axes.plot_date(xs, ys, label='Acquisition')
+
+    # Axes styling
+    axes.legend(handles=[points[0], line[0]])
+    axes.set_xlabel('Date')
+    axes.set_ylabel('Perpendicular Baseline / m')
+    axes.set_title('Baseline Plot')
+    axes.xaxis.set_major_formatter(mpl_dates.DateFormatter('%Y-%b'))
+
+    if fname:
+        fig.savefig(fname, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -538,6 +607,17 @@ if __name__ == '__main__':
                                         default=None,
                                         help='Output file name')
 
+    baseline_plot_subparser = subparsers.add_parser('baseline',
+                                                    help='Make a baseline plot')
+    baseline_plot_subparser.set_defaults(func=_plot_baseline_plot)
+    baseline_plot_subparser.add_argument('-o', '--output',
+                                         action='store',
+                                         default=None,
+                                         help='Output file name')
+    baseline_plot_subparser.add_argument('-m', '--master-date',
+                                         action='store',
+                                         default=None,
+                                         help='Master date of baseline plot')
 
     args = parser.parse_args()
     os.chdir(args.d)
