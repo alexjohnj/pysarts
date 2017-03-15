@@ -325,6 +325,9 @@ def execute_export_train(args):
     """
     lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                   'grid.txt'))
+
+    region_res = max(abs(lons[-1] - lons[-2]), abs(lats[-1] - lats[-2]))
+
     lons, lats = np.meshgrid(lons, lats)
     ifg_dates = [util.extract_timestamp_from_ifg_name(name) for name in find_ifgs()]
 
@@ -362,6 +365,7 @@ setparm_aps('ll_matfile', [pwd '/ll.mat'])
 setparm_aps('ifgday_matfile', [pwd '/ifgday.mat'])
 setparm_aps('UTC_sat', '{utctime:s}')
 setparm_aps('demfile', '{demfile:s}')
+setparm_aps('region_res', {res:f})
 setparm_aps('region_lon_range', [{lon_min:f} {lon_max:f}])
 setparm_aps('region_lat_range', [{lat_min:f} {lat_max:f}])
 if exist('custom_setup.m', 'file') == 2
@@ -369,6 +373,7 @@ if exist('custom_setup.m', 'file') == 2
 end
 """.format(utctime=utc_sat_time,
            demfile=os.path.abspath(config.DEM_PATH),
+           res=region_res,
            lon_min=lon_min,
            lon_max=lon_max,
            lat_min=lat_min,
