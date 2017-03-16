@@ -19,6 +19,7 @@ from . import workflow
 from . import nimrod
 from . import util
 from . import config
+from . import train
 import argparse
 
 plt.style.use('ggplot')
@@ -129,8 +130,9 @@ def plot_ifg(ifg, axes=None):
                             ifg['data'],
                             latlon=True,
                             cmap=cm.RdBu_r,
-                            vmin=vmin,
-                            vmax=vmax)
+                            # vmin=vmin,
+                            # vmax=vmax
+    )
 
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label('LOS Delay / cm')
@@ -527,6 +529,97 @@ def plot_baseline_plot(master_date, fname=None):
 
     plt.close()
 
+
+def _plot_era_slant_delay(args):
+    if not args.hydrostatic and not args.wet and not args.total:
+        # TODO: Print to stderr
+        print("Error, must specify one of hydro, wet or total")
+        exit(1)
+
+    date = args.date if args.date else config.MASTER_DATE
+    if args.hydrostatic:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_hydro' + comps[1]
+
+        plot_era_slant_delay(date, kind='hydro', output=output)
+
+    if args.wet:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_wet' + comps[1]
+
+        plot_era_slant_delay(date, kind='wet', output=output)
+
+    if args.total:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_total' + comps[1]
+
+        plot_era_slant_delay(date, kind='total', output=output)
+
+
+def plot_era_slant_delay(master_date, kind='total', output=None):
+    """Plot the slant delay for a date computed from ERA by TRAIN
+
+    Arguments
+    ---------
+    master_date : date
+      The date to plot the delay for.
+    kind : str, opt
+      The type of delay to plot. One of 'hydro', 'wet' or 'total' (default).
+    output : str, opt
+      Name of the file to save the plot to.
+    """
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%d').date()
+
+    master_datestamp = master_date.strftime('%Y%m%d')
+    era_dir = workflow.get_train_era_slant_dir()
+    delay_fpath = os.path.join(era_dir, master_datestamp + '.mat')
+
+    era_delays = train.load_train_slant_delay(delay_fpath)
+    data = np.zeros(era_delays['wet_delay'].shape)
+    if kind == 'wet':
+        data[:, :] = era_delays['wet_delay']
+    elif kind == 'hydro':
+        data[:, :] = era_delays['hydro_delay']
+    elif kind == 'total':
+        data[:, :] = era_delays['wet_delay'] + era_delays['hydro_delay']
+    else:
+        raise KeyError('Unknown kind {}'.format(kind))
+
+    # Mask the data to remove NaNs
+    data = np.ma.masked_invalid(data)
+
+    ifg = {
+        'lons': era_delays['lons'],
+        'lats': era_delays['lats'],
+        'data': data,
+        'master_date': master_date,
+        'slave_date': datetime.today().date(),
+    }
+
+    fig, bmap = plot_ifg(ifg)
+
+    title_map = {'total': 'Total', 'hydro': 'Hydrostatic', 'wet': 'Wet'}
+    title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
+                                                 date=master_date)
+
+    axes = fig.get_axes()[0]
+    axes.set_title(title_str)
+
+    if output:
+        fig.savefig(output, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -618,6 +711,27 @@ if __name__ == '__main__':
                                          action='store',
                                          default=None,
                                          help='Master date of baseline plot')
+
+    era_slant_delay_subparser = subparsers.add_parser('era-slant-delay',
+                                                      help='Plot slant delay for a single date calculated by ERA')
+    era_slant_delay_subparser.add_argument('-d', '--date',
+                                           action='store',
+                                           default=None,
+                                           help='Date to plot delay for')
+    era_slant_delay_subparser.add_argument('-y', '--hydrostatic',
+                                           action='store_true',
+                                           help='Plot the hydrostatic delay')
+    era_slant_delay_subparser.add_argument('-w', '--wet',
+                                           action='store_true',
+                                           help='Plot the wet delay')
+    era_slant_delay_subparser.add_argument('-t', '--total',
+                                           action='store_true',
+                                           help='Plot the total delay')
+    era_slant_delay_subparser.add_argument('-o', '--output',
+                                           action='store',
+                                           default=None,
+                                           help='Output file name')
+    era_slant_delay_subparser.set_defaults(func=_plot_era_slant_delay)
 
     args = parser.parse_args()
     os.chdir(args.d)

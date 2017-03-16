@@ -175,8 +175,15 @@ def find_closest_weather_radar_files(master_date):
     return (wr_before_path, wr_after_path)
 
 
+def get_train_era_slant_dir():
+    """Returns the path to the directory containing ERA slant delays calculated by
+    TRAIN"""
+    return os.path.join(config.SCRATCH_DIR, 'train', 'era_slant_delay')
+
+
 # MAIN WORKFLOW STEPS
 def execute_load_clip_resample_convert_step(args):
+
     """Execute the first step of the processing flow.
 
     This step finds all interferograms in the unwrapped interferogram directory
