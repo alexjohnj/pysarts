@@ -24,6 +24,8 @@ import argparse
 
 plt.style.use('ggplot')
 
+COAST_DETAIL = 'f'
+
 def _parse_unwrapped_ifg_args(args):
     if args.time_series:
         plot_time_series_ifg(args.master, args.slave, args.output)
@@ -110,7 +112,7 @@ def plot_ifg(ifg, axes=None):
                    llcrnrlat=ifg['lats'][0],
                    urcrnrlon=ifg['lons'][-1],
                    urcrnrlat=ifg['lats'][-1],
-                   resolution='f',
+                   resolution=COAST_DETAIL,
                    projection='merc',
                    ax=axes)
     parallels = np.linspace(ifg['lats'][0], ifg['lats'][-1], 5)
@@ -317,7 +319,7 @@ def plot_wr(wr, axes=None):
                    llcrnrlat=wr['lats'][0],
                    urcrnrlon=wr['lons'][-1],
                    urcrnrlat=wr['lats'][-1],
-                   resolution='h',
+                   resolution=COAST_DETAIL,
                    projection='merc',
                    ax=axes)
 
@@ -718,6 +720,7 @@ def plot_era_ifg_delay(master_date, slave_date, kind='total', output=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
+    parser.add_argument('-r', '--coast-detail', action='store', default='i', help='Resolution of coastlines in the plot.')
     subparsers = parser.add_subparsers()
 
     # Plot unwrapped interferogram parser
@@ -858,6 +861,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     os.chdir(args.d)
+    COAST_DETAIL = args.coast_detail
     config.load_from_yaml('config.yml')
     logging.basicConfig(level=config.LOG_LEVEL)
 
