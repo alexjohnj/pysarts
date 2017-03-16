@@ -130,8 +130,8 @@ def plot_ifg(ifg, axes=None):
                             ifg['data'],
                             latlon=True,
                             cmap=cm.RdBu_r,
-                            # vmin=vmin,
-                            # vmax=vmax
+                            vmin=vmin,
+                            vmax=vmax
     )
 
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
@@ -620,6 +620,101 @@ def plot_era_slant_delay(master_date, kind='total', output=None):
     plt.close()
 
 
+def _plot_era_ifg_delay(args):
+    if not args.hydrostatic and not args.wet and not args.total:
+        # TODO: Print to stderr
+        print("Error, must specify one or more of hydro, wet or total")
+        exit(1)
+
+    master_date = args.master_date
+    slave_date = args.slave_date
+    if args.hydrostatic:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_hydro' + comps[1]
+
+        plot_era_ifg_delay(master_date, slave_date, kind='hydro',
+                           output=output)
+
+    if args.wet:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_wet' + comps[1]
+
+        plot_era_ifg_delay(master_date, slave_date, kind='wet',
+                           output=output)
+
+    if args.total:
+        output = args.output
+        if output:
+            comps = os.path.splitext(output)
+            output = comps[0] + '_total' + comps[1]
+
+        plot_era_ifg_delay(master_date, slave_date, kind='total',
+                           output=output)
+
+def plot_era_ifg_delay(master_date, slave_date, kind='total', output=None):
+    """Plot the interferometric delay for a date computed from ERA by TRAIN
+
+    Arguments
+    ---------
+    master_date : date
+      The date to plot the delay for.
+    slave_date : date
+      The slave date to plot the delay for.
+    kind : str, opt
+      The type of delay to plot. One of 'hydro', 'wet' or 'total' (default).
+    output : str, opt
+      Name of the file to save the plot to.
+    """
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%d').date()
+    if isinstance(slave_date, str):
+        slave_date = datetime.strptime(slave_date, '%Y%m%d').date()
+
+    train_dir = os.path.join(config.SCRATCH_DIR, 'train')
+    correction_fpath = os.path.join(train_dir, 'tca2.mat')
+    dates_fpath = os.path.join(train_dir, 'ifgday.mat')
+    grid_fpath = os.path.join(train_dir, 'll.mat')
+
+    corrections = train.load_train_ifg_delay(correction_fpath,
+                                             grid_fpath,
+                                             dates_fpath,
+                                             master_date,
+                                             slave_date)
+
+    data = np.zeros(corrections['wet_delay'].shape)
+    if kind == 'hydro':
+        data[:, :] = corrections['hydro_delay']
+    elif kind == 'wet':
+        data[:, :] = corrections['wet_delay']
+    elif kind == 'total':
+        data[:, :] = corrections['total_delay']
+    else:
+        raise KeyError('"kind" was not one of hydro, wet or total')
+
+    # Mask invalid data
+    data = np.ma.masked_invalid(data)
+
+    ifg = {
+        'lons': corrections['lons'],
+        'lats': corrections['lats'],
+        'data': data,
+        'master_date': master_date,
+        'slave_date': slave_date,
+    }
+
+    fig, bmap = plot_ifg(ifg)
+
+    if output:
+        fig.savefig(output, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -732,6 +827,34 @@ if __name__ == '__main__':
                                            default=None,
                                            help='Output file name')
     era_slant_delay_subparser.set_defaults(func=_plot_era_slant_delay)
+
+    era_ifg_delay_subparser = subparsers.add_parser('era-ifg-delay',
+                                                    help=('Plot interferometric atmospheric'
+                                                          'delays calculated by ERA'))
+    era_ifg_delay_subparser.add_argument('-m', '--master-date',
+                                         action='store',
+                                         default=None,
+                                         required=True,
+                                         help='Master date to plot delay for')
+    era_ifg_delay_subparser.add_argument('-s', '--slave-date',
+                                         action='store',
+                                         default=None,
+                                         required=True,
+                                         help='Slave date to plot delay for')
+    era_ifg_delay_subparser.add_argument('-y', '--hydrostatic',
+                                         action='store_true',
+                                         help='Plot the hydrostatic delay')
+    era_ifg_delay_subparser.add_argument('-w', '--wet',
+                                         action='store_true',
+                                         help='Plot the wet delay')
+    era_ifg_delay_subparser.add_argument('-t', '--total',
+                                         action='store_true',
+                                         help='Plot the total delay')
+    era_ifg_delay_subparser.add_argument('-o', '--output',
+                                         action='store',
+                                         default=None,
+                                         help='Output file name')
+    era_ifg_delay_subparser.set_defaults(func=_plot_era_ifg_delay)
 
     args = parser.parse_args()
     os.chdir(args.d)
