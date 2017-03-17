@@ -68,16 +68,16 @@ class ERAModel(object):
             # Transpose temperature, humidity and potential so they have
             # dimensions given by (lat, lon, p_level). By default they have
             # dimensions given by (p_level, lat, lon).
-            temp = temp.transpose(2, 1, 0)
-            rel_hum = rel_hum.transpose(2, 1, 0)
-            geopot = geopot.transpose(2, 1, 0)
+            temp = temp.transpose(1, 2, 0)
+            rel_hum = rel_hum.transpose(1, 2, 0)
+            geopot = geopot.transpose(1, 2, 0)
 
             # Reshape pressure levels so they form a pressure grid.
             nlevels = p_levels.size
             p_levels = np.repeat(p_levels, lats.size * lons.size)
             pressures = p_levels.reshape(nlevels,
                                          lons.size,
-                                         lats.size).transpose(2, 1, 0)
+                                         lats.size).transpose(1, 2, 0)
 
             # Flip 3D variables the along 3rd axis so that highest pressure
             # level is the first in the stack.
