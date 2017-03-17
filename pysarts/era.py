@@ -41,7 +41,15 @@ class ERAModel(object):
     Initialisation
     --------------
     """
-    pass
+    def __init__(self, lats, lons, date, rel_hum, temp, geopot, pressure):
+        self.rel_hum = rel_hum
+        self.temp = temp
+        self.geopot = geopot
+        self.pressure = pressure
+        self.lats = lats
+        self.lons = lons
+        self.date = date
+
 
 
 
