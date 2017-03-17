@@ -1,5 +1,5 @@
-"""Module for interacting with TRAIN output.
-
+"""Module with functions for working with TRAIN's weather model derived
+correction output.
 """
 
 from datetime import datetime
