@@ -100,7 +100,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
 
     return None
 
-def plot_ifg(ifg, axes=None):
+def plot_ifg(ifg, axes=None, center_zero=True):
     """Plot an ifg dictionary. Returns a figure handle"""
     if axes:
         fig = axes.get_figure()
@@ -127,14 +127,22 @@ def plot_ifg(ifg, axes=None):
     vmin = vmax * -1
 
     lon_mesh, lat_mesh = np.meshgrid(ifg['lons'], ifg['lats'])
-    image = bmap.pcolormesh(lon_mesh,
-                            lat_mesh,
-                            ifg['data'],
-                            latlon=True,
-                            cmap=cm.RdBu_r,
-                            vmin=vmin,
-                            vmax=vmax
-    )
+
+    image = None
+    if center_zero is True:
+        image = bmap.pcolormesh(lon_mesh,
+                                lat_mesh,
+                                ifg['data'],
+                                latlon=True,
+                                cmap=cm.RdBu_r,
+                                vmin=vmin,
+                                vmax=vmax)
+    else:
+        image = bmap.pcolormesh(lon_mesh,
+                                lat_mesh,
+                                ifg['data'],
+                                latlon=True,
+                                cmap=cm.RdBu_r,)
 
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label('LOS Delay / cm')
@@ -605,7 +613,7 @@ def plot_era_slant_delay(master_date, kind='total', output=None):
         'slave_date': datetime.today().date(),
     }
 
-    fig, bmap = plot_ifg(ifg)
+    fig, bmap = plot_ifg(ifg, center_zero=False)
 
     title_map = {'total': 'Total', 'hydro': 'Hydrostatic', 'wet': 'Wet'}
     title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
