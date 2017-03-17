@@ -605,6 +605,16 @@ def plot_era_slant_delay(master_date, kind='total', output=None):
     # Mask the data to remove NaNs
     data = np.ma.masked_invalid(data)
 
+    # Get a mask for water from one of the interferograms
+    ifg_path = os.path.join(config.SCRATCH_DIR,
+                            'master_atmosphere',
+                            config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
+    ifg_data = np.load(ifg_path)
+    ifg_data = np.ma.masked_values(ifg_data, 0)
+
+    # Combine masks
+    data.mask = ifg_data.mask | data.mask
+
     ifg = {
         'lons': era_delays['lons'],
         'lats': era_delays['lats'],
@@ -707,6 +717,17 @@ def plot_era_ifg_delay(master_date, slave_date, kind='total', output=None):
 
     # Mask invalid data
     data = np.ma.masked_invalid(data)
+
+    # Get a mask for water from the interferogram
+    ifg_path = os.path.join(config.SCRATCH_DIR,
+                            'uifg_resampled',
+                            (slave_date.strftime('%Y%m%d') + '_' +
+                             master_date.strftime('%Y%m%d') + '.npy'))
+    ifg_data = np.load(ifg_path)
+    ifg_data = np.ma.masked_values(ifg_data, 0)
+
+    # Combine masks
+    data.mask = ifg_data.mask | data.mask
 
     ifg = {
         'lons': corrections['lons'],
