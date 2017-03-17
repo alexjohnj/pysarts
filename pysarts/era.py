@@ -20,6 +20,9 @@ class ERAModel(object):
       The temperature in Kelvin at each node.
     geopot : (n,m,o) ndarray
       The geopotential in m^2 s^-2 at each node.
+    pressure : (n,m,o) ndarray
+      The pressure at each model node in hPa. Will be constant for a given
+      pressure level. Derived from the pressure levels.
     lats : (n,) ndarray
       Latitudes of weather model nodes.
     lons : (m,) ndarray
