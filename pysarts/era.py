@@ -95,3 +95,41 @@ class ERAModel(object):
 
             # Initialise an instance
             return ERAModel(lats, lons, date, rel_hum, temp, geopot, pressures)
+
+    @property
+    def height(self):
+        STANDARD_GRAV = 9.80665
+        EARTH_RADIUS_MAX = 6378137
+        EARTH_RADIUS_MIN = 6356752
+
+        # Calculate the variation in gravity across the model using WGS84
+        # gravity formula. The magic number a, b and c make the formula:
+        # a * ([1 + b*sin^2(phi)] / sqrt(1 - c*sin^2(lat))) = g
+        # Gives gravitational acceleration in m/s^2
+        nlevels = self.pressure.shape[2]
+        lat_mesh, _ = np.meshgrid(self.lats, self.lons)
+        lat_mesh = np.deg2rad(lat_mesh)
+        lat_mesh = lat_mesh.repeat(nlevels)
+        lat_mesh = lat_mesh.reshape(self.lats.size,
+                                    self.lons.size,
+                                    nlevels)
+
+        a = 9.7803253359
+        b = 0.00193185265241
+        c = 0.00669437999013
+        grav = (a * (1 + b * np.sin(lat_mesh)**2)
+                / np.sqrt(1 - c * np.sin(lat_mesh)**2))
+
+        # Calculate the variation in the earth's radius with latitude
+        numerator = ((EARTH_RADIUS_MAX**2 * np.cos(lat_mesh))**2
+                     + (EARTH_RADIUS_MIN**2 * np.sin(lat_mesh))**2)
+        denominator = ((EARTH_RADIUS_MAX * np.cos(lat_mesh)**2)
+                       + (EARTH_RADIUS_MIN * np.sin(lat_mesh)**2))
+        earth_radius = np.sqrt(numerator / denominator)
+
+        # Let's go find the height
+        geopot_height = self.geopot / STANDARD_GRAV
+        height = ((geopot_height * earth_radius)
+                  / (grav / STANDARD_GRAV * earth_radius - geopot_height))
+
+        return height
