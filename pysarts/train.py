@@ -101,7 +101,7 @@ def load_train_ifg_delay(delay_path, grid_path, dates_path, master_date, slave_d
 
     # Convert phase to LOS delay in cm.
     def phase2delay(data):
-        wavelength = 0.0562  # cm
+        wavelength = 5.62  # cm
         return data * wavelength / (4 * pi)
 
     total_delay = phase2delay(total_delay)
