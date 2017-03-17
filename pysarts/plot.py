@@ -738,6 +738,12 @@ def plot_era_ifg_delay(master_date, slave_date, kind='total', output=None):
     }
 
     fig, bmap = plot_ifg(ifg)
+    axes = fig.get_axes()[0]
+    title_map = {'wet': 'Wet', 'hydro': 'Hydrostatic', 'total': 'Total'}
+    title = '{:s} Delay\nMaster: {:s}\nSlave: {:s}'.format(title_map[kind],
+                                                           master_date.strftime('%Y-%m-%d'),
+                                                           slave_date.strftime('%Y-%m-%d'))
+    axes.set_title(title)
 
     if output:
         fig.savefig(output, bbox_inches='tight')
