@@ -190,9 +190,6 @@ class ERAModel(object):
         lat_min_idx = np.argmin(np.abs(self.lats - lat_min))
         lat_max_idx = np.argmin(np.abs(self.lats - lat_max))
 
-        print(lat_min_idx)
-        print(lat_max_idx)
-
         self.lats = self.lats[lat_min_idx:lat_max_idx+1]
         self.lons = self.lons[lon_min_idx:lon_max_idx+1]
         self.rel_hum = self.rel_hum[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
@@ -276,7 +273,7 @@ class ERAModel(object):
 
         # Just repeat pressures to interpolate
         self.pressure = (np.repeat(new_plevels, new_lons.size * new_lats.size)
-                         .reshape(new_nlevels, new_lons.size, new_lats.size)
+                         .reshape(new_nlevels, new_lats.size, new_lons.size)
                          .transpose(1, 2, 0))
         self.pressure = np.flip(self.pressure, 2)
         self.lats = new_lats
