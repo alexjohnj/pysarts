@@ -82,6 +82,10 @@ train_export_parser = subparsers.add_parser('export-train',
                                             help='Export files for processing with TRAIN')
 train_export_parser.set_defaults(func=workflow.execute_export_train)
 
+zenith_delay_parser = subparsers.add_parser('era-zenith-delay',
+                                            help='Calculate zenith delays from ERA')
+zenith_delay_parser.set_defaults(func=workflow.execute_calculate_zenith_delays)
+
 # Parse Arguments
 args = mainParser.parse_args()
 os.chdir(args.directory)

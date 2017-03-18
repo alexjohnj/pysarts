@@ -8,11 +8,16 @@ import os
 from datetime import datetime
 import glob
 from multiprocessing.pool import Pool
+from netCDF4 import Dataset
 
 import numpy as np
 import yaml
 import scipy.io as scpio
 
+import matplotlib.pyplot as plt
+
+from .era import ERAModel
+from . import corrections
 from . import config
 from . import inversion
 from . import nimrod
@@ -134,9 +139,12 @@ def read_grid_from_file(path):
 
     return (lons, lats)
 
-def find_closest_weather_radar_files(master_date):
+
+def find_closest_weather_radar_files(master_date, target_dir=config.WEATHER_RADAR_DIR):
     """Searches the weather radar directory for the closest weather radar images
     before and after a date and time.
+
+    Can be made to search other directories using the target_dir argument.
 
     Returns
     -------
@@ -154,7 +162,7 @@ def find_closest_weather_radar_files(master_date):
     If an exact match is found for the given date, the same path will be
     returned twice.
     """
-    paths = glob.glob(os.path.join(config.WEATHER_RADAR_DIR, '**/*.nc'),
+    paths = glob.glob(os.path.join(target_dir, '**/*.nc'),
                       recursive=True)
 
     dates = []
@@ -169,8 +177,8 @@ def find_closest_weather_radar_files(master_date):
     wr_before_path = paths[time_deltas.index(shortest_delta_before[0])]
     wr_after_path = paths[time_deltas.index(shortest_delta_after[-1])]
 
-    logging.info('Closest radar image before %s is %s', master_date, wr_before_path)
-    logging.info('Closest radar image after %s is %s', master_date, wr_after_path)
+    logging.info('Closest file before %s is %s', master_date, wr_before_path)
+    logging.info('Closest file after %s is %s', master_date, wr_after_path)
 
     return (wr_before_path, wr_after_path)
 
@@ -396,3 +404,87 @@ end
 
     with open(os.path.join(output_directory, 'setup.m'), 'w') as f:
         f.write(setup_script_contents)
+
+def execute_calculate_zenith_delays(args):
+    """For the master date, calculates the one-way zenith delay produced by the
+    wet and dry components of the atmosphere. Outputs are saved into
+    SCRATCH_DIR/zenith_delay folder with the names DATE_dry.npy, DATE_wet.npy
+    and DATE_total.npy.
+
+    This stage uses two weather models, one before and one after the acquisition
+    time. The final delay is weighted according to which model is closest.
+    """
+    # Load the DEM for the target region.
+    logging.info('Loading DEM')
+    dem = util.load_dem(config.DEM_PATH)
+
+    # Handle NaNs in the DEM
+    dem['data'].fill_value = 0
+    dem['data'] = dem['data'].filled()
+
+    # Load weather models before and after the acquisition time.
+    logging.info('Loading weather models')
+    before_path, after_path = find_closest_weather_radar_files(config.MASTER_DATE,
+                                                               config.ERA_MODELS_PATH)
+    before_model = ERAModel.load_era_netcdf(before_path)
+    after_model = ERAModel.load_era_netcdf(after_path)
+
+    # Get some information about the region
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                  'grid.txt'))
+    lon_min, lon_max = np.amin(lons), np.amax(lons)
+    lat_min, lat_max = np.amin(lats), np.amax(lats)
+
+    # Make these slightly larger than the target region.
+    lon_bounds = (lon_min - 0.5, lon_max + 0.5)
+    lat_bounds = (lat_min - 0.5, lat_max + 0.5)
+
+    # Clip and resample DEM onto master grid.
+    logging.info('Clipping and resampling DEM to target region')
+    processing.clip_ifg(dem, lon_bounds, lat_bounds)
+    processing._resample_ifg(dem, lons, lats)
+
+    # Clip and resample weather model onto master grid.
+    logging.info('Clipping and resampling weather models to target region')
+    before_model.clip(lon_bounds, lat_bounds)
+    after_model.clip(lon_bounds, lat_bounds)
+    before_model.resample(lons, lats)
+    after_model.resample(lons, lats)
+
+    # Calculate the delay for models before and after the acquisition.
+    logging.info('Calculating zenith delay for model before acquisition')
+    delay_before = corrections.calculate_era_zenith_delay(before_model, dem)
+    logging.info('Calculating zenith delay for model after acquisition')
+    delay_after = corrections.calculate_era_zenith_delay(after_model, dem)
+
+    # Calculate the weighting for the two models
+    time_diff = (after_model.date - before_model.date).total_seconds()
+    before_diff = (config.MASTER_DATE - before_model.date).total_seconds()
+    before_weight = 1 - (before_diff / time_diff)
+
+    delay = {}
+    delay['total'] = (before_weight * delay_before['data']
+                      + (1 - before_weight) * delay_after['data'])
+    delay['wet'] = (before_weight * delay_before['wet_delay']
+                    + (1 - before_weight) * delay_after['wet_delay'])
+    delay['dry'] = (before_weight * delay_before['dry_delay']
+                    + (1 - before_weight) * delay_after['dry_delay'])
+
+    # Create output paths
+    output_base = os.path.join(config.SCRATCH_DIR,
+                               'zenith_delays')
+    os.makedirs(output_base, exist_ok=True)
+    output_dry = os.path.join(output_base,
+                              (config.MASTER_DATE.strftime('%Y%m%d')
+                               + '_dry.npy'))
+    output_wet = os.path.join(output_base,
+                              (config.MASTER_DATE.strftime('%Y%m%d')
+                               + '_wet.npy'))
+    output_total = os.path.join(output_base,
+                                (config.MASTER_DATE.strftime('%Y%m%d')
+                                 + '_total.npy'))
+
+    # Save out the results
+    np.save(output_dry, delay['dry'])
+    np.save(output_wet, delay['wet'])
+    np.save(output_total, delay['total'])

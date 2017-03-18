@@ -53,6 +53,7 @@ def calculate_era_zenith_delay(model, dem):
     for (y, x), _ in np.ndenumerate(dem['data']):
         # Interpolate model parameters vertically from pixel's DEM height to
         # max troposphere height (15 km).
+        print('\rLatitude {:4d} of {:4d}. Longitude {:4d} of {:4d}'.format(y, model.lats.size, x, model.lons.size), end='')
         new_heights = np.linspace(dem['data'][y, x], maxheight, nheights)
         temp_interpf = interp1d(height[y, x, :], model.temp[y, x, :],
                                 fill_value="extrapolate")
