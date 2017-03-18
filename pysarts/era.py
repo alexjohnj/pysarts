@@ -164,3 +164,53 @@ class ERAModel(object):
                   / (grav / STANDARD_GRAV * earth_radius - geopot_height))
 
         return height
+
+    def clip(self, lon_bounds, lat_bounds):
+        """Clip the weather model to a target region.
+
+        Mutates self.
+
+        Arguments
+        ---------
+        lon_bounds : tuple
+          2-tuple containing (lower, upper) bounds for longitude.
+        lat_bounds : tuple
+          2-tuple containing (lower, upper) bounds for latitude.
+        """
+        lon_min, lon_max = min(lon_bounds), max(lon_bounds)
+        lat_min, lat_max = min(lat_bounds), max(lat_bounds)
+
+        if (not self._point_is_in_grid(lon_min, lat_min)
+            or not self._point_is_in_grid(lon_max, lat_max)):
+            raise IndexError('Bounding box is outside of the grid.')
+
+        lon_min_idx = np.argmin(np.abs(self.lons - lon_min))
+        lon_max_idx = np.argmin(np.abs(self.lons - lon_max))
+        lat_min_idx = np.argmin(np.abs(self.lats - lat_min))
+        lat_max_idx = np.argmin(np.abs(self.lats - lat_max))
+
+        print(lat_min_idx)
+        print(lat_max_idx)
+
+        self.lats = self.lats[lat_min_idx:lat_max_idx+1]
+        self.lons = self.lons[lon_min_idx:lon_max_idx+1]
+        self.rel_hum = self.rel_hum[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
+        self.temp = self.temp[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
+        self.geopot = self.geopot[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
+        self.pressure = self.pressure[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
+
+    def _point_is_in_grid(self, x, y):
+        """Check if a point falls within a grid.
+
+        Arguments
+        ---------
+        x, y : float
+          x and y coordinates to test
+
+        Returns
+        -------
+        `True` if (x, y) lies within the grid. Otherwise `False`.
+        """
+        return (np.amin(self.lons) <= x <= np.amax(self.lons)
+                and
+                np.amin(self.lats) <= y <= np.amax(self.lats))
