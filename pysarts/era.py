@@ -8,6 +8,7 @@ a dictionary with the following keys:
 from datetime import datetime, timedelta
 
 from netCDF4 import Dataset
+from scipy.interpolate import RegularGridInterpolator
 import numpy as np
 
 
@@ -199,6 +200,8 @@ class ERAModel(object):
         self.geopot = self.geopot[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
         self.pressure = self.pressure[lat_min_idx:lat_max_idx+1, lon_min_idx:lon_max_idx+1, :]
 
+        return None
+
     def _point_is_in_grid(self, x, y):
         """Check if a point falls within a grid.
 
@@ -214,3 +217,69 @@ class ERAModel(object):
         return (np.amin(self.lons) <= x <= np.amax(self.lons)
                 and
                 np.amin(self.lats) <= y <= np.amax(self.lats))
+
+    def resample(self, new_lons, new_lats, new_plevels=None):
+        """Resample the model onto a new grid.
+
+        Linear resampling is carried out using a 3D RegularGridInterpolator.
+
+        Arguments
+        ---------
+        new_lats : (n,) ndarray
+          The new latitudes to sample the model at.
+        new_lons : (m,) ndarray
+          The new longitudes to sample the model at.
+        new_plevels : (o,) ndarray, opt
+          The new pressure levels to sample the model at in decreasing
+          order. If `None`, the pressure levels will be unchanged.
+
+        `self`'s geopotential, humidity and temperature variables will be
+        interpolated onto a grid of size (n,m,o).
+
+        """
+        # RegularGridInterpolator mandates that the grid points are strictly
+        # ascending. All the flips along the second axis of the data matrices
+        # is to make pressure levels ascend instead of descend.
+        plevels = self.pressure[0, 0, ::-1]  # P-levels from lowest to highest
+        if new_plevels is None:
+            new_plevels = plevels
+        else:
+            new_plevels = new_plevels[::-1]
+
+        new_nlevels = new_plevels.size
+        grid = (self.lats, self.lons, plevels)
+        # Build the new grid for interpolation onto.
+        xis, yis, pis = np.broadcast_arrays(new_lats.reshape(-1, 1, 1),
+                                            new_lons.reshape(1, -1, 1),
+                                            new_plevels)
+        interp_coords = np.vstack((xis.flatten(), yis.flatten(),
+                                   pis.flatten()))
+
+        # Let's go interpolate some variables
+        temp_interp = RegularGridInterpolator(grid, np.flip(self.temp, 2))
+        hum_interp = RegularGridInterpolator(grid, np.flip(self.rel_hum, 2))
+        geopot_interp = RegularGridInterpolator(grid, np.flip(self.geopot, 2))
+
+        new_temps = temp_interp(interp_coords.T).reshape(new_lats.size,
+                                                         new_lons.size,
+                                                         new_plevels.size)
+        new_hum = hum_interp(interp_coords.T).reshape(new_lats.size,
+                                                      new_lons.size,
+                                                      new_plevels.size)
+        new_geopot = geopot_interp(interp_coords.T).reshape(new_lats.size,
+                                                            new_lons.size,
+                                                            new_plevels.size)
+
+        self.temp = np.flip(new_temps, 2)
+        self.rel_hum = np.flip(new_hum, 2)
+        self.geopot = np.flip(new_geopot, 2)
+
+        # Just repeat pressures to interpolate
+        self.pressure = (np.repeat(new_plevels, new_lons.size * new_lats.size)
+                         .reshape(new_nlevels, new_lons.size, new_lats.size)
+                         .transpose(1, 2, 0))
+        self.pressure = np.flip(self.pressure, 2)
+        self.lats = new_lats
+        self.lons = new_lons
+
+        return None
