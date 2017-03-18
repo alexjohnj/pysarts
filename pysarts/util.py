@@ -1,5 +1,8 @@
 import os.path
 from datetime import datetime
+
+from netCDF4 import Dataset
+
 def extract_timestamp_from_ifg_name(file_name):
     """Extract master and slave date objects from the name of an interferogram.
 
@@ -22,3 +25,17 @@ def extract_timestamp_from_ifg_name(file_name):
     master_date = datetime.strptime(name_parts[1], "%Y%m%d")
 
     return (master_date.date(), slave_date.date())
+
+
+def load_dem(path):
+    """Loads a NetCDF formatted DEM.
+
+    Returns a dictionary with the keys 'lats', 'lons' and 'data'.
+    """
+    with Dataset(path) as df:
+        dem = {}
+        dem['lons'] = df.variables['lon'][:]
+        dem['lats'] = df.variables['lat'][:]
+        dem['data'] = df.variables['Band1'][:, :]
+
+        return dem

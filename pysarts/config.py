@@ -49,6 +49,9 @@ DEM_PATH = './dem.nc'
 input interferograms."""
 BPERP_FILE_PATH = "./baselines.txt"
 
+"""Path to a directory containing NetCDF era-interim model outputs."""
+ERA_MODELS_PATH = './era_models'
+
 """Resolution to resample to. Dict with keys 'delta_x' and 'delta_y' giving
 resolution in metres. Default to `None` indicating no resampling.
 
@@ -78,6 +81,7 @@ def load_from_yaml(path):
     global UIFG_DIR, SCRATCH_DIR, WEATHER_RADAR_DIR
     global DEM_PATH
     global BPERP_FILE_PATH
+    global ERA_MODELS_PATH
     global RESOLUTION, REGION
     global LOG_LEVEL
 
@@ -88,6 +92,7 @@ def load_from_yaml(path):
     WEATHER_RADAR_DIR = os.path.expanduser(conf['files'].get('wr_dir', WEATHER_RADAR_DIR))
     DEM_PATH = os.path.expanduser(conf['files'].get('dem', DEM_PATH))
     BPERP_FILE_PATH = os.path.expanduser(conf['files'].get('baselines', BPERP_FILE_PATH))
+    ERA_MODELS_PATH = os.path.expanduser(conf['files'].get('era_models', ERA_MODELS_PATH))
     RESOLUTION = conf.get('resolution', RESOLUTION)
     LOG_LEVEL = conf.get('log_level', LOG_LEVEL)
     REGION = conf.get('region', REGION)
