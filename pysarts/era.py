@@ -86,6 +86,14 @@ class ERAModel(object):
             rel_hum = np.flip(rel_hum, 2)
             geopot = np.flip(geopot, 2)
 
+            # Flip variables along 1st axis so that var[0, 0] corresponds to
+            # lat[0], lon[0].
+            pressures = np.flipud(pressures)  # Not really needed
+            temp = np.flipud(temp)
+            rel_hum = np.flipud(rel_hum)
+            geopot = np.flipud(geopot)
+            lats = lats[::-1]
+
             # Extract the date. Date is stored as number of hours since
             # midnight 1900-01-01
             reference_time = datetime(1900, 1, 1, 0, 0, 0)
