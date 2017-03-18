@@ -35,7 +35,7 @@ class ERAModel(object):
 
     Properties
     ----------
-    e : (n,m,o) ndarray
+    ppwv : (n,m,o) ndarray
       The partial pressure of water vapour in hPa. Derived from `temp` and
       `rel_hum`.
     height : (n,m,o) ndarray
@@ -95,6 +95,29 @@ class ERAModel(object):
 
             # Initialise an instance
             return ERAModel(lats, lons, date, rel_hum, temp, geopot, pressures)
+
+    @property
+    def ppwv(self):
+        # Calculation of saturated water vapour pressure for water and ice is
+        # based on Buck 1981 and Alduchow & Eskridge 1996. Code implementation
+        # based on implantation in TRAIN by David Bekaert.
+        UPPER_TEMP_BOUND = 273.16  # K
+        LOWER_TEMP_BOUND = 250.16  # K
+
+        # Calculate saturated pressure for water (T > 0) and ice (T < 0) in
+        # hPa.
+        svp_water = 6.1121 * np.exp((17.502 * (self.temp - 273.16))
+                                    / (240.97 + self.temp - 273.16))
+        svp_ice = 6.1112 * np.exp((22.587 * (self.temp - 273.16))
+                                  / (273.86 + self.temp - 273.16))
+
+        wgt = (self.temp - LOWER_TEMP_BOUND) / (UPPER_TEMP_BOUND - LOWER_TEMP_BOUND)
+        svp = svp_ice + (wgt**2) * (svp_water - svp_ice)
+
+        svp[self.temp > UPPER_TEMP_BOUND] = svp_water[self.temp > UPPER_TEMP_BOUND]
+        svp[self.temp < LOWER_TEMP_BOUND] = svp_ice[self.temp < LOWER_TEMP_BOUND]
+
+        return self.rel_hum * svp / 100
 
     @property
     def height(self):
