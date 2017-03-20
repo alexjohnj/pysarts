@@ -3,6 +3,7 @@ from datetime import datetime
 
 from netCDF4 import Dataset
 from numba import jit
+import numba
 import numpy as np
 
 def extract_timestamp_from_ifg_name(file_name):
@@ -55,7 +56,7 @@ def bisect(a, x):
     return M
 
 
-@jit
+@jit(numba.float64[:](numba.float64[:], numba.float64[:], numba.float64[:]))
 def interp1d(xs, ys, xis):
     """1D linear interpolation of points with linear extrapolation.
 
@@ -85,7 +86,7 @@ def interp1d(xs, ys, xis):
     return yis
 
 
-@jit(nopython=True)
+@jit(numba.void(numba.float64[:], numba.float64[:], numba.float64[:], numba.float64[:]), nopython=True)
 def interp1d_jit(xs, ys, xis, yis):
     for idx in range(xis.size):
         idx1 = bisect(xs, xis[idx])
