@@ -8,14 +8,13 @@ import os
 from . import workflow
 from . import util
 
-def execute_all_steps():
-    workflow.execute_load_clip_resample_convert_step()
-    workflow.execute_invert_unwrapped_phase()
-    workflow.execute_calculate_dem_matmosphere_error()
-    workflow.execute_calculate_zenith_delays()
+def execute_all_steps(args):
+    workflow.execute_load_clip_resample_convert_step(args)
+    workflow.execute_invert_unwrapped_phase(args)
+    workflow.execute_calculate_dem_matmosphere_error(args)
 
 
-def execute_on_all_slc_dates():
+def execute_on_all_slc_dates(args):
     """Executes the full processing stack on all the SLC dates in the UIFG_DIR
     directory that aren't filtered by the config file.
 
@@ -29,16 +28,15 @@ def execute_on_all_slc_dates():
     slc_time = workflow.config.MASTER_DATE.time()
 
     # Only need to run the clip, resample, convert step once.
-    workflow.execute_load_clip_resample_convert_step()
+    workflow.execute_load_clip_resample_convert_step(args)
 
     # Let's go!
     logging.info('Going to run processing workflow on %d master dates', len(ifg_dates))
     for date in ifg_dates:
         logging.info('Switching master date to %s', date.strftime('%Y-%m-%d'))
         workflow.config.MASTER_DATE = datetime.combine(date, slc_time)
-        workflow.execute_invert_unwrapped_phase()
-        workflow.execute_calculate_dem_matmosphere_error()
-        workflow.execute_calculate_zenith_delays()
+        workflow.execute_invert_unwrapped_phase(args)
+        workflow.execute_calculate_dem_matmosphere_error(args)
 
 
 mainParser = argparse.ArgumentParser(prog='pysarts')
@@ -89,6 +87,11 @@ train_export_parser.set_defaults(func=workflow.execute_export_train)
 zenith_delay_parser = subparsers.add_parser('era-zenith-delay',
                                             help='Calculate zenith delays from ERA')
 zenith_delay_parser.set_defaults(func=workflow.execute_calculate_zenith_delays)
+zenith_delay_parser.add_argument('-c', '--max-processes',
+                                 action='store',
+                                 type=int,
+                                 default=2,
+                                 help='Maximum number of subprocesses to spawn')
 
 slant_delay_parser = subparsers.add_parser('era-slant-delay',
                                            help=('Calculate slant delays'

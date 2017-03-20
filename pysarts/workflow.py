@@ -2,7 +2,6 @@
 
 Almost all of these functions have side-effects.
 """
-
 import logging
 import os
 from datetime import datetime
@@ -406,13 +405,14 @@ end
         f.write(setup_script_contents)
 
 def execute_calculate_zenith_delays(args):
-    """For the master date, calculates the one-way zenith delay produced by the
-    wet and dry components of the atmosphere. Outputs are saved into
+    """For all dates calculates the one-way zenith delay produced by the wet and dry
+    components of the atmosphere. Outputs are saved into
     SCRATCH_DIR/zenith_delay folder with the names DATE_dry.npy, DATE_wet.npy
     and DATE_total.npy.
 
     This stage uses two weather models, one before and one after the acquisition
     time. The final delay is weighted according to which model is closest.
+
     """
     # Load the DEM for the target region.
     logging.info('Loading DEM')
@@ -421,13 +421,6 @@ def execute_calculate_zenith_delays(args):
     # Handle NaNs in the DEM
     dem['data'].fill_value = 0
     dem['data'] = dem['data'].filled()
-
-    # Load weather models before and after the acquisition time.
-    logging.info('Loading weather models')
-    before_path, after_path = find_closest_weather_radar_files(config.MASTER_DATE,
-                                                               config.ERA_MODELS_PATH)
-    before_model = ERAModel.load_era_netcdf(before_path)
-    after_model = ERAModel.load_era_netcdf(after_path)
 
     # Get some information about the region
     lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
@@ -439,17 +432,51 @@ def execute_calculate_zenith_delays(args):
     lon_bounds = (lon_min - 0.5, lon_max + 0.5)
     lat_bounds = (lat_min - 0.5, lat_max + 0.5)
 
-    # Clip and resample DEM onto master grid.
+    # Clip and resample the DEM to the target region
     logging.info('Clipping and resampling DEM to target region')
     processing.clip_ifg(dem, lon_bounds, lat_bounds)
     processing._resample_ifg(dem, lons, lats)
+
+    # Load in dates to calculate atmospheric delay for
+    logging.info('Loading acquisition dates')
+    date_file = os.path.join(config.SCRATCH_DIR,
+                             'uifg_ts',
+                             config.MASTER_DATE.strftime('%Y%m%d') + '.yml')
+    dates = []
+    with open(date_file) as f:
+        dates = yaml.safe_load(f)
+
+    # Build a list of arguments to pass to the parallel helper.
+    helper_args = []
+    for date in dates:
+        datestamp = datetime(date.year, date.month, date.day,
+                             config.MASTER_DATE.hour,
+                             config.MASTER_DATE.minute)
+        helper_args += [(datestamp, dem, lon_bounds, lat_bounds)]
+
+    # Increase the number of processes if you've got enough memory
+    with Pool(args.max_processes) as p:
+        p.starmap(_parallel_zenith_delay, helper_args)
+
+
+def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds):
+    """Helper for zenith delay calculation step.
+
+    Used to run the main calculation in parallel.
+    """
+    # Load weather models before and after the acquisition time.
+    logging.info('Loading weather models for date %s', date.strftime('%Y%m%d'))
+    before_path, after_path = find_closest_weather_radar_files(date,
+                                                               config.ERA_MODELS_PATH)
+    before_model = ERAModel.load_era_netcdf(before_path)
+    after_model = ERAModel.load_era_netcdf(after_path)
 
     # Clip and resample weather model onto master grid.
     logging.info('Clipping and resampling weather models to target region')
     before_model.clip(lon_bounds, lat_bounds)
     after_model.clip(lon_bounds, lat_bounds)
-    before_model.resample(lons, lats)
-    after_model.resample(lons, lats)
+    before_model.resample(dem['lons'], dem['lats'])
+    after_model.resample(dem['lons'], dem['lats'])
 
     # Calculate the delay for models before and after the acquisition.
     logging.info('Calculating zenith delay for model before acquisition')
@@ -459,7 +486,7 @@ def execute_calculate_zenith_delays(args):
 
     # Calculate the weighting for the two models
     time_diff = (after_model.date - before_model.date).total_seconds()
-    before_diff = (config.MASTER_DATE - before_model.date).total_seconds()
+    before_diff = (date - before_model.date).total_seconds()
     before_weight = 1 - (before_diff / time_diff)
 
     delay = {}
@@ -475,13 +502,13 @@ def execute_calculate_zenith_delays(args):
                                'zenith_delays')
     os.makedirs(output_base, exist_ok=True)
     output_dry = os.path.join(output_base,
-                              (config.MASTER_DATE.strftime('%Y%m%d')
+                              (date.strftime('%Y%m%d')
                                + '_dry.npy'))
     output_wet = os.path.join(output_base,
-                              (config.MASTER_DATE.strftime('%Y%m%d')
+                              (date.strftime('%Y%m%d')
                                + '_wet.npy'))
     output_total = os.path.join(output_base,
-                                (config.MASTER_DATE.strftime('%Y%m%d')
+                                (date.strftime('%Y%m%d')
                                  + '_total.npy'))
 
     # Save out the results

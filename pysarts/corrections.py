@@ -149,3 +149,18 @@ def zenith2slant(zenith_delay, angle):
     return zenith_delay / np.cos(angle)
 
 
+def calc_ifg_delay(master_delay, slave_delay):
+    """Calculate the interferometric delay.
+
+    Arguments
+    ---------
+    master_delay : (n,m) ndarray
+      Matrix containing the atmospheric delay on the master date.
+    slave_delay : (n,m) ndarray
+      Matrix containing the atmospheric delay on the slave date.
+
+    Returns
+    -------
+    A matrix of size (n,m) containing the interferometric delay.
+    """
+    return master_delay - slave_delay
