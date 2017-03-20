@@ -101,3 +101,23 @@ def interp1d_jit(xs, ys, xis, yis):
 
         yis[idx] = ys[idx0] + ((xis[idx] - xs[idx0]) * (ys[idx1] - ys[idx0])
                                / (xs[idx1] - xs[idx0]))
+
+
+# Implementation based on Numpy implementation
+@jit(nopython=True)
+def trapz(xs, ys):
+    """Integration of points using trapezium rule.
+
+    Arguments
+    ---------
+    xs : (n,) ndarray
+      Points where function to integrate has been evaluated at.
+    ys : (n,) ndarray
+      Value of function to integrate at points `xs`.
+
+    Returns
+    -------
+    A float.
+    """
+    d = np.diff(xs)
+    return (d * (ys[1:] + ys[:-1]) / 2.0).sum()
