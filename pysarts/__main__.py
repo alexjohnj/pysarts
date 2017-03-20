@@ -14,6 +14,7 @@ def execute_all_steps():
     workflow.execute_calculate_dem_matmosphere_error()
     workflow.execute_calculate_zenith_delays()
 
+
 def execute_on_all_slc_dates():
     """Executes the full processing stack on all the SLC dates in the UIFG_DIR
     directory that aren't filtered by the config file.
@@ -37,6 +38,8 @@ def execute_on_all_slc_dates():
         workflow.config.MASTER_DATE = datetime.combine(date, slc_time)
         workflow.execute_invert_unwrapped_phase()
         workflow.execute_calculate_dem_matmosphere_error()
+        workflow.execute_calculate_zenith_delays()
+
 
 mainParser = argparse.ArgumentParser(prog='pysarts')
 mainParser.set_defaults(func=execute_all_steps)
