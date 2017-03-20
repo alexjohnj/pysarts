@@ -12,6 +12,7 @@ def execute_all_steps():
     workflow.execute_load_clip_resample_convert_step()
     workflow.execute_invert_unwrapped_phase()
     workflow.execute_calculate_dem_matmosphere_error()
+    workflow.execute_calculate_zenith_delays()
 
 def execute_on_all_slc_dates():
     """Executes the full processing stack on all the SLC dates in the UIFG_DIR
