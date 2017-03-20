@@ -540,7 +540,7 @@ def plot_baseline_plot(master_date, fname=None):
     plt.close()
 
 
-def _plot_era_slant_delay(args):
+def _plot_train_sar_delay(args):
     if not args.hydrostatic and not args.wet and not args.total:
         # TODO: Print to stderr
         print("Error, must specify one of hydro, wet or total")
@@ -553,7 +553,7 @@ def _plot_era_slant_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_hydro' + comps[1]
 
-        plot_era_slant_delay(date, kind='hydro', output=output)
+        plot_train_sar_delay(date, kind='hydro', output=output)
 
     if args.wet:
         output = args.output
@@ -561,7 +561,7 @@ def _plot_era_slant_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_wet' + comps[1]
 
-        plot_era_slant_delay(date, kind='wet', output=output)
+        plot_train_sar_delay(date, kind='wet', output=output)
 
     if args.total:
         output = args.output
@@ -569,10 +569,10 @@ def _plot_era_slant_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_total' + comps[1]
 
-        plot_era_slant_delay(date, kind='total', output=output)
+        plot_train_sar_delay(date, kind='total', output=output)
 
 
-def plot_era_slant_delay(master_date, kind='total', output=None):
+def plot_train_sar_delay(master_date, kind='total', output=None):
     """Plot the slant delay for a date computed from ERA by TRAIN
 
     Arguments
@@ -640,7 +640,7 @@ def plot_era_slant_delay(master_date, kind='total', output=None):
     plt.close()
 
 
-def _plot_era_ifg_delay(args):
+def _plot_train_ifg_delay(args):
     if not args.hydrostatic and not args.wet and not args.total:
         # TODO: Print to stderr
         print("Error, must specify one or more of hydro, wet or total")
@@ -654,8 +654,8 @@ def _plot_era_ifg_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_hydro' + comps[1]
 
-        plot_era_ifg_delay(master_date, slave_date, kind='hydro',
-                           output=output)
+        plot_train_ifg_delay(master_date, slave_date, kind='hydro',
+                             output=output)
 
     if args.wet:
         output = args.output
@@ -663,8 +663,8 @@ def _plot_era_ifg_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_wet' + comps[1]
 
-        plot_era_ifg_delay(master_date, slave_date, kind='wet',
-                           output=output)
+        plot_train_ifg_delay(master_date, slave_date, kind='wet',
+                             output=output)
 
     if args.total:
         output = args.output
@@ -672,10 +672,10 @@ def _plot_era_ifg_delay(args):
             comps = os.path.splitext(output)
             output = comps[0] + '_total' + comps[1]
 
-        plot_era_ifg_delay(master_date, slave_date, kind='total',
-                           output=output)
+        plot_train_ifg_delay(master_date, slave_date, kind='total',
+                             output=output)
 
-def plot_era_ifg_delay(master_date, slave_date, kind='total', output=None):
+def plot_train_ifg_delay(master_date, slave_date, kind='total', output=None):
     """Plot the interferometric delay for a date computed from ERA by TRAIN
 
     Arguments
@@ -845,54 +845,54 @@ if __name__ == '__main__':
                                          default=None,
                                          help='Master date of baseline plot')
 
-    era_slant_delay_subparser = subparsers.add_parser('era-slant-delay',
-                                                      help='Plot slant delay for a single date calculated by ERA')
-    era_slant_delay_subparser.add_argument('-d', '--date',
-                                           action='store',
-                                           default=None,
-                                           help='Date to plot delay for')
-    era_slant_delay_subparser.add_argument('-y', '--hydrostatic',
-                                           action='store_true',
-                                           help='Plot the hydrostatic delay')
-    era_slant_delay_subparser.add_argument('-w', '--wet',
-                                           action='store_true',
-                                           help='Plot the wet delay')
-    era_slant_delay_subparser.add_argument('-t', '--total',
-                                           action='store_true',
-                                           help='Plot the total delay')
-    era_slant_delay_subparser.add_argument('-o', '--output',
-                                           action='store',
-                                           default=None,
-                                           help='Output file name')
-    era_slant_delay_subparser.set_defaults(func=_plot_era_slant_delay)
+    train_sar_delay_parser = subparsers.add_parser('era-slant-delay',
+                                                   help='Plot slant delay for a single date calculated by ERA')
+    train_sar_delay_parser.add_argument('-d', '--date',
+                                        action='store',
+                                        default=None,
+                                        help='Date to plot delay for')
+    train_sar_delay_parser.add_argument('-y', '--hydrostatic',
+                                        action='store_true',
+                                        help='Plot the hydrostatic delay')
+    train_sar_delay_parser.add_argument('-w', '--wet',
+                                        action='store_true',
+                                        help='Plot the wet delay')
+    train_sar_delay_parser.add_argument('-t', '--total',
+                                        action='store_true',
+                                        help='Plot the total delay')
+    train_sar_delay_parser.add_argument('-o', '--output',
+                                        action='store',
+                                        default=None,
+                                        help='Output file name')
+    train_sar_delay_parser.set_defaults(func=_plot_train_sar_delay)
 
-    era_ifg_delay_subparser = subparsers.add_parser('era-ifg-delay',
-                                                    help=('Plot interferometric atmospheric'
-                                                          'delays calculated by ERA'))
-    era_ifg_delay_subparser.add_argument('-m', '--master-date',
-                                         action='store',
-                                         default=None,
-                                         required=True,
-                                         help='Master date to plot delay for')
-    era_ifg_delay_subparser.add_argument('-s', '--slave-date',
-                                         action='store',
-                                         default=None,
-                                         required=True,
-                                         help='Slave date to plot delay for')
-    era_ifg_delay_subparser.add_argument('-y', '--hydrostatic',
-                                         action='store_true',
-                                         help='Plot the hydrostatic delay')
-    era_ifg_delay_subparser.add_argument('-w', '--wet',
-                                         action='store_true',
-                                         help='Plot the wet delay')
-    era_ifg_delay_subparser.add_argument('-t', '--total',
-                                         action='store_true',
-                                         help='Plot the total delay')
-    era_ifg_delay_subparser.add_argument('-o', '--output',
-                                         action='store',
-                                         default=None,
-                                         help='Output file name')
-    era_ifg_delay_subparser.set_defaults(func=_plot_era_ifg_delay)
+    train_insar_delay_parser = subparsers.add_parser('train-insar-delay',
+                                                     help=('Plot interferometric atmospheric'
+                                                           'delays calculated by TRAIN from ERA'))
+    train_insar_delay_parser.add_argument('-m', '--master-date',
+                                          action='store',
+                                          default=None,
+                                          required=True,
+                                          help='Master date to plot delay for')
+    train_insar_delay_parser.add_argument('-s', '--slave-date',
+                                          action='store',
+                                          default=None,
+                                          required=True,
+                                          help='Slave date to plot delay for')
+    train_insar_delay_parser.add_argument('-y', '--hydrostatic',
+                                          action='store_true',
+                                          help='Plot the hydrostatic delay')
+    train_insar_delay_parser.add_argument('-w', '--wet',
+                                          action='store_true',
+                                          help='Plot the wet delay')
+    train_insar_delay_parser.add_argument('-t', '--total',
+                                          action='store_true',
+                                          help='Plot the total delay')
+    train_insar_delay_parser.add_argument('-o', '--output',
+                                          action='store',
+                                          default=None,
+                                          help='Output file name')
+    train_insar_delay_parser.set_defaults(func=_plot_train_ifg_delay)
 
     args = parser.parse_args()
     os.chdir(args.d)
