@@ -75,7 +75,7 @@ class ERAModel(object):
 
             # Reshape pressure levels so they form a pressure grid.
             nlevels = p_levels.size
-            p_levels = np.repeat(p_levels, lats.size * lons.size)
+            p_levels = np.repeat(p_levels, lats.size * lons.size).astype(float)
             pressures = p_levels.reshape(nlevels,
                                          lons.size,
                                          lats.size).transpose(1, 2, 0)
