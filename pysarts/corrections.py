@@ -1,9 +1,12 @@
 """Defines corrections for interferometric errors."""
 
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.integrate import trapz
+from numba import jit
+import numba
+from .util import trapz, interp1d_jit
 
+
+@jit
 def calculate_era_zenith_delay(model, dem):
     """Calculates the one-way zenith delay in cm predicted by a weather
     model.
@@ -39,47 +42,11 @@ def calculate_era_zenith_delay(model, dem):
     height = model.height
     ppwv = model.ppwv
 
-    # Maximum height and number of height levels to interpolate weather model
-    # parameters to.
-    maxheight = 15000
-    nheights = 1024
+    dry_delay = np.empty(dem['data'].shape)
+    wet_delay = np.empty(dem['data'].shape)
 
-    # The implementation here is loosely based off of the implementation in
-    # TRAIN by David Bekaert. There are some differences that give slightly
-    # different numerical results. Notably, the dry delay is found by
-    # integrating pressure with height rather than by calculating the surface
-    # pressure. Note the performance is rather poor due to the reliance on a
-    # loop. This can probably be made faster.
-    for (y, x), _ in np.ndenumerate(dem['data']):
-        # Interpolate model parameters vertically from pixel's DEM height to
-        # max troposphere height (15 km).
-        print('\rLatitude {:4d} of {:4d}. Longitude {:4d} of {:4d}'.format(y, model.lats.size, x, model.lons.size), end='')
-        new_heights = np.linspace(dem['data'][y, x], maxheight, nheights)
-        temp_interpf = interp1d(height[y, x, :], model.temp[y, x, :],
-                                fill_value="extrapolate")
-        hum_interpf = interp1d(height[y, x, :], ppwv[y, x, :],
-                               fill_value="extrapolate")
-        pressure_interpf = interp1d(height[y, x, :], model.pressure[y, x, :],
-                                    fill_value="extrapolate")
-
-        temp_interp = temp_interpf(new_heights)
-        hum_interp = hum_interpf(new_heights) * 100   # Pa
-        pressure_interp = pressure_interpf(new_heights) * 100  # Pa
-
-        # Calculate refractive index with height.
-        # Constants and formulae from Hanssen 2001
-        k1 = 0.776  # K Pa^{-1}
-        k2 = 0.716  # K Pa^{-1}
-        k3 = 3.75 * 10**3  # K^2 Pa{-1}
-        Rd = 287.053
-        Rv = 461.524
-
-        wet_refract = ((k2 - (k1 * Rd / Rv)) * (hum_interp / temp_interp)
-                       + (k3 * hum_interp / (temp_interp ** 2)))
-        dry_refract = k1 * pressure_interp / temp_interp
-        # Calculate delays and convert to centimetres.
-        wet_delay[y, x] = 10**-6 * trapz(wet_refract, new_heights) * 100
-        dry_delay[y, x] = 10**-6 * trapz(dry_refract, new_heights) * 100
+    _calculate_zenith_delay_jit(dem['data'], height, model.temp, ppwv,
+                                model.pressure, wet_delay, dry_delay)
 
     output = {
         'lons': model.lons,
@@ -90,3 +57,75 @@ def calculate_era_zenith_delay(model, dem):
     }
 
     return output
+
+
+@jit(numba.void(numba.float64[:, :],
+                numba.float64[:, :, :],
+                numba.float64[:, :, :],
+                numba.float64[:, :, :],
+                numba.float64[:, :, :],
+                numba.float64[:, :],
+                numba.float64[:, :]),
+     nopython=True)
+def _calculate_zenith_delay_jit(dem, height, temp, ppwv, pressure, out_wet, out_dry):
+    """JIT optimised function to calculate the zenith wet and dry delay.
+
+    Arguments
+    ---------
+    dem : (n,m) ndarray
+      DEM in matrix form.
+    height : (n,m,o) ndarray
+      Heights of the weather model.
+    temp : (n,m,o) ndarray
+      Weather model temperatures
+    ppwv : (n,m,o) ndarray
+      Weather model partial pressure of water vapour
+    pressure : (n,m,o) ndarray
+      Weather model pressure.
+    out_wet : (n,m) ndarray
+      Matrix to save wet delay into.
+    out_dry : (n,m) ndarray
+      Matrix to save dry delay into.
+
+    Returns
+    -------
+    None
+
+    """
+    # The implementation here is loosely based off of the implementation in
+    # TRAIN by David Bekaert. There are some differences that give slightly
+    # different numerical results. Notably, the dry delay is found by
+    # integrating pressure with height rather than by calculating the surface
+    # pressure. Note the performance is rather poor due to the reliance on a
+    # loop. This can probably be made faster.
+    # Constants and formulae from Hanssen 2001
+    k1 = 0.776  # K Pa^{-1}
+    k2 = 0.716  # K Pa^{-1}
+    k3 = 3.75 * 10**3  # K^2 Pa{-1}
+    Rd = 287.053
+    Rv = 461.524
+
+    nheights = 1024
+
+    # Caches for the interpolated variables. Needed for JIT evaluation of the
+    # interpolation function.
+    itemp = np.zeros(nheights)
+    ippwv = np.zeros(nheights)
+    ipressure = np.zeros(nheights)
+    for (y, x), _ in np.ndenumerate(dem):
+        new_heights = np.linspace(dem[y, x], 15000, nheights)
+        interp1d_jit(height[y, x, :], temp[y, x, :], new_heights, itemp)
+        interp1d_jit(height[y, x, :], ppwv[y, x, :], new_heights, ippwv)
+        interp1d_jit(height[y, x, :], pressure[y, x, :], new_heights, ipressure)
+
+        # Convert pressures from hPa to Pa
+        ipressure *= 100
+        ippwv *= 100
+
+        wet_refract = ((k2 - (k1 * Rd / Rv)) * (ippwv / itemp)
+                       + (k3 * ippwv / (itemp**2)))
+        dry_refract = k1 * ipressure / itemp
+
+        # Convert delays to centimetres
+        out_wet[y, x] = 10**-6 * trapz(new_heights, wet_refract) * 100
+        out_dry[y, x] = 10**-6 * trapz(new_heights, dry_refract) * 100
