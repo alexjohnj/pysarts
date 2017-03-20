@@ -752,6 +752,80 @@ def plot_train_ifg_delay(master_date, slave_date, kind='total', output=None):
 
     plt.close()
 
+
+def _plot_sar_delay(args):
+    date = args.date if args.date else config.MASTER_DATE
+    kinds = []
+    if args.hydrostatic:
+        kinds += ['dry']
+    if args.wet:
+        kinds += ['wet']
+    if args.total:
+        kinds += ['total']
+
+    for kind in kinds:
+        plot_sar_delay(date, kind, args.zenith, args.output)
+
+
+def plot_sar_delay(date, kind='total', zenith=False, output=None):
+    if isinstance(date, str):
+        date = datetime.strptime(date, '%Y%m%d').date()
+
+    if kind not in ('total', 'dry', 'wet'):
+        raise KeyError('Unknown kind {}'.format(kind))
+
+    datestamp = date.strftime('%Y%m%d')
+    delay_dir = ""
+    if zenith:
+        delay_dir = os.path.join(config.SCRATCH_DIR,
+                                 'zenith_delays')
+    else:
+        delay_dir = os.path.join(config.SCRATCH_DIR,
+                                 'slant_delays')
+
+    delay_file = os.path.join(delay_dir,
+                              datestamp + '_' + kind + '.npy')
+    delay = np.load(delay_file)
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+
+    # Get a mask for water from one of the interferograms
+    ifg_path = os.path.join(config.SCRATCH_DIR,
+                            'master_atmosphere',
+                            config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
+    ifg_data = np.load(ifg_path)
+    ifg_data = np.ma.masked_values(ifg_data, 0)
+
+    delay = np.ma.masked_invalid(delay)
+
+    # Combine masks
+    delay.mask = ifg_data.mask | delay.mask
+
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': delay,
+        'master_date': date,
+        'slave_date': datetime.today().date(),
+    }
+
+    fig, bmap = plot_ifg(ifg, center_zero=False)
+
+    title_map = {'total': 'Total', 'dry': 'Hydrostatic', 'wet': 'Wet'}
+    title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
+                                                 date=date)
+
+    axes = fig.get_axes()[0]
+    axes.set_title(title_str)
+
+    if output:
+        fig.savefig(output, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', action='store', default='.', help='The project directory')
@@ -893,6 +967,30 @@ if __name__ == '__main__':
                                           default=None,
                                           help='Output file name')
     train_insar_delay_parser.set_defaults(func=_plot_train_ifg_delay)
+
+    sar_delay_parser = subparsers.add_parser('sar-delay',
+                                             help=('Plot SAR delays computed by pysarts'))
+    sar_delay_parser.add_argument('-d', '--date',
+                                  action='store',
+                                  default=None,
+                                  help='Date to plot delay for.')
+    sar_delay_parser.add_argument('-z', '--zenith',
+                                  action='store_true',
+                                  help='Plot zenith delays instead of slant delays')
+    sar_delay_parser.add_argument('-y', '--hydrostatic',
+                                  action='store_true',
+                                  help='Plot the dry delay')
+    sar_delay_parser.add_argument('-w', '--wet',
+                                  action='store_true',
+                                  help='Plot the wet delay')
+    sar_delay_parser.add_argument('-t', '--total',
+                                  action='store_true',
+                                  help='Plot the dry delay')
+    sar_delay_parser.add_argument('-o', '--output',
+                                  action='store',
+                                  default=None,
+                                  help='Output file name')
+    sar_delay_parser.set_defaults(func=_plot_sar_delay)
 
     args = parser.parse_args()
     os.chdir(args.d)
