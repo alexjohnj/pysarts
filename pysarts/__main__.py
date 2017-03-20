@@ -90,6 +90,11 @@ zenith_delay_parser = subparsers.add_parser('era-zenith-delay',
                                             help='Calculate zenith delays from ERA')
 zenith_delay_parser.set_defaults(func=workflow.execute_calculate_zenith_delays)
 
+slant_delay_parser = subparsers.add_parser('era-slant-delay',
+                                           help=('Calculate slant delays'
+                                                 'from zenith delays'))
+slant_delay_parser.set_defaults(func=workflow.execute_calculate_slant_delays)
+
 # Parse Arguments
 args = mainParser.parse_args()
 os.chdir(args.directory)

@@ -488,3 +488,26 @@ def execute_calculate_zenith_delays(args):
     np.save(output_dry, delay['dry'])
     np.save(output_wet, delay['wet'])
     np.save(output_total, delay['total'])
+
+
+def execute_calculate_slant_delays(args):
+    """Calculates slant delays from the zenith delays computed previously.
+    """
+    zenith_delay_dir = os.path.join(config.SCRATCH_DIR,
+                                    'zenith_delays')
+    paths = glob.glob(os.path.join(zenith_delay_dir, '*.npy'))
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'slant_delays'), exist_ok=True)
+
+    with Pool() as p:
+        p.map(_execute_slant_delay_helper, paths)
+
+
+def _execute_slant_delay_helper(path):
+    zenith_delay = np.load(path)
+    slant_delay = corrections.zenith2slant(zenith_delay,
+                                           np.deg2rad(21))  # TODO: Make angle configurable
+    out_file = os.path.join(config.SCRATCH_DIR,
+                            'slant_delays',
+                            os.path.basename(path))
+
+    np.save(out_file, slant_delay)

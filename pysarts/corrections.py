@@ -129,3 +129,23 @@ def _calculate_zenith_delay_jit(dem, height, temp, ppwv, pressure, out_wet, out_
         # Convert delays to centimetres
         out_wet[y, x] = 10**-6 * trapz(new_heights, wet_refract) * 100
         out_dry[y, x] = 10**-6 * trapz(new_heights, dry_refract) * 100
+
+
+def zenith2slant(zenith_delay, angle):
+    """Map zenith delay to slant delay using a cosine mapping.
+
+    Arguments
+    ---------
+    zenith_delay : (n,m) ndarray
+      Matrix containing the zenith delay.
+    angle : float or (n,m) ndarray
+      The look angle at each point in radians the interferogram or a single
+      number for a constant look angle.
+
+    Returns
+    -------
+    A matrix of size (n,m) containing the slant delay.
+    """
+    return zenith_delay / np.cos(angle)
+
+
