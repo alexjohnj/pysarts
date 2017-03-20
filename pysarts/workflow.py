@@ -538,3 +538,36 @@ def _execute_slant_delay_helper(path):
                             os.path.basename(path))
 
     np.save(out_file, slant_delay)
+
+
+def execute_calculate_ifg_delays(args):
+    """Calculates interferometric slant delays for all pairings in the bperp
+    file."""
+    # Load perpendicular baselines
+    bperp_contents = inversion.read_bperp_file(config.BPERP_FILE_PATH)
+
+    helper_args = []
+    for (master_date, slave_date, _) in bperp_contents:
+        helper_args += [(master_date, slave_date)]
+
+    os.makedirs(os.path.join(config.SCRATCH_DIR,
+                                 'ifg_era_delays'))
+
+    with Pool() as p:
+        p.starmap(_execute_calculate_ifg_delays, helper_args)
+
+
+def _execute_calculate_ifg_delays(master_date, slave_date):
+    slant_delay_dir = os.path.join(config.SCRATCH_DIR,
+                                   'slant_delays')
+    master_delay = np.load(os.path.join(slant_delay_dir,
+                                        master_date.strftime('%Y%m%d') + '_total.npy'))
+    slave_delay = np.load(os.path.join(slant_delay_dir, slave_date.strftime('%Y%m%d')
+                                       + '_total.npy'))
+    ifg_delay = corrections.calc_ifg_delay(master_delay, slave_delay)
+
+    output_dir = os.path.join(config.SCRATCH_DIR, 'ifg_era_delays')
+    output_file_name = slave_date.strftime('%Y%m%d') + '_' + master_date.strftime('%Y%m%d') + '.npy'
+    output_path = os.path.join(output_dir, output_file_name)
+
+    np.save(output_path, ifg_delay)

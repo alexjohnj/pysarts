@@ -98,6 +98,11 @@ slant_delay_parser = subparsers.add_parser('era-slant-delay',
                                                  'from zenith delays'))
 slant_delay_parser.set_defaults(func=workflow.execute_calculate_slant_delays)
 
+ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
+                                        help=('Calculate interferometric'
+                                              'slant delays'))
+ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
+
 # Parse Arguments
 args = mainParser.parse_args()
 os.chdir(args.directory)
