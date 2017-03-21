@@ -815,6 +815,9 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
     title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
                                                  date=date)
 
+    if zenith:
+        title_str += ' (Zenith)'
+
     axes = fig.get_axes()[0]
     axes.set_title(title_str)
 
