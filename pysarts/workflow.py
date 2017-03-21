@@ -456,17 +456,31 @@ def execute_calculate_zenith_delays(args):
         datestamp = datetime(date.year, date.month, date.day,
                              config.MASTER_DATE.hour,
                              config.MASTER_DATE.minute)
-        helper_args += [(datestamp, dem, lon_bounds, lat_bounds)]
+        helper_args += [(datestamp, dem, lon_bounds, lat_bounds, args.rainfall)]
 
     # Increase the number of processes if you've got enough memory
     with Pool(args.max_processes) as p:
         p.starmap(_parallel_zenith_delay, helper_args)
 
 
-def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds):
+def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None):
     """Helper for zenith delay calculation step.
 
     Used to run the main calculation in parallel.
+
+    Arguments
+    ---------
+    date : datetime.datetime
+      The date of the weather model.
+    dem : dict
+      DEM dictionary for the region.
+    lon_bounds : 2-tuple
+      Region longitude bounds
+    lat_bounds : 2-tuple
+      Region latitude bounds
+    plevels : 2-tuple, opt
+      The maximum and minimum pressure levels to use in a rainfall enhanced
+      correction. Pass `None` to disable the rainfall correction.
     """
     # Load weather models before and after the acquisition time.
     logging.info('Loading weather models for date %s',
@@ -484,12 +498,22 @@ def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds):
     before_model.resample(dem['lons'], dem['lats'])
     after_model.resample(dem['lons'], dem['lats'])
 
+    # Incorporate rainfall data if needed
+    if plevels is not None:
+        _, wr_after_path = find_closest_weather_radar_files(date)
+        wr = nimrod.load_from_netcdf(wr_after_path)
+        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+        wr = nimrod.resample_wr(wr, dem['lons'], dem['lats'])
+
+        pmin, pmax = min(plevels), max(plevels)
+        after_model.add_rainfall(wr['data'], pmin, pmax)
+
     # Calculate the delay for models before and after the acquisition.
     logging.info('Calculating zenith delay for model %s',
-                 before_model.strftime('%Y-%m-%d'))
+                 before_model.date.strftime('%Y-%m-%d'))
     delay_before = corrections.calculate_era_zenith_delay(before_model, dem)
     logging.info('Calculating zenith delay for model %s',
-                 after_model.strftime('%Y-%m-%d'))
+                 after_model.date.strftime('%Y-%m-%d'))
     delay_after = corrections.calculate_era_zenith_delay(after_model, dem)
 
     # Calculate the weighting for the two models
@@ -559,7 +583,7 @@ def execute_calculate_ifg_delays(args):
         helper_args += [(master_date, slave_date)]
 
     os.makedirs(os.path.join(config.SCRATCH_DIR,
-                                 'ifg_era_delays'),
+                             'ifg_era_delays'),
                 exist_ok=True)
 
     with Pool() as p:

@@ -280,3 +280,45 @@ class ERAModel(object):
         self.lons = new_lons
 
         return None
+
+    def add_rainfall(self, rainfall, min_plevel, max_plevel):
+        """Update model's relative humidity using rainfall data.
+
+        Where there is rainfall the relative humidity will be set to
+        100%. Vertical extent of humidity modification is controlled by the min
+        and max plevel arguments.
+
+        Arguments
+        ---------
+        rainfall : (n,m) ndarray
+          A matrix with the same dimensions as self along the first and second
+          axes. Contains the surface rainfall in mm/hr at each point in the
+          model.
+        min_plevel, max_plevel : float
+          The minimum and maximum pressure levels to adjust the relative
+          humidity in. The relative humidity will be adjusted for pressure
+          levels in the range min_plevel <= plevel <= max_plevel. Should be in
+          the same units as `self.pressure`.
+
+        """
+        # Check dimensions of rainfall and weather model agree
+        if rainfall.shape != self.pressure.shape[0:2]:
+            raise ValueError('Shape of rainfall grid does not agree with model dimensions')
+
+        # Check pressure level limits are within the model limits
+        if min_plevel < self.pressure[0, 0, -1] or max_plevel > self.pressure[0, 0, 0]:
+            raise IndexError('Minimum or maximum pressure level is outside the model\'s limits')
+
+        # Find indices of min and max pressure levels
+        try:
+            min_plevel_idx = np.nonzero(self.pressure[0, 0, :] == min_plevel)[0][0]
+            max_plevel_idx = np.nonzero(self.pressure[0, 0, :] == max_plevel)[0][0]
+        except IndexError:
+            raise IndexError('Min/max pressure level not found in model')
+
+        # Extract the relative humidity for each pressure level, modify it and
+        # reinsert it.
+        for idx in range(max_plevel_idx, min_plevel_idx + 1):
+            hum_slice = self.rel_hum[:, :, idx]
+            hum_slice[rainfall >= 0.25] = 100
+            self.rel_hum[:, :, idx] = hum_slice

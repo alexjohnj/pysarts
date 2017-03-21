@@ -92,6 +92,15 @@ zenith_delay_parser.add_argument('-c', '--max-processes',
                                  type=int,
                                  default=2,
                                  help='Maximum number of subprocesses to spawn')
+zenith_delay_parser.add_argument('-r', '--rainfall',
+                                 action='store',
+                                 nargs=2,
+                                 default=None,
+                                 type=int,
+                                 help=('Include rainfall data in correction.'
+                                       'Include the minimum and maximum'
+                                       'pressure levels to modify with'
+                                       'rainfall data.'))
 
 slant_delay_parser = subparsers.add_parser('era-slant-delay',
                                            help=('Calculate slant delays'
