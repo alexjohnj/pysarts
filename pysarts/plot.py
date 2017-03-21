@@ -826,10 +826,70 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
     plt.close()
 
 
+def _plot_insar_delay(args):
+    plot_insar_delay(args.master_date, args.slave_date, args.output)
+
+
+def plot_insar_delay(master_date, slave_date, output=None):
+    if isinstance(master_date, str):
+        master_date = datetime.strptime(master_date, '%Y%m%d')
+    if isinstance(slave_date, str):
+        slave_date = datetime.strptime(slave_date, '%Y%m%d')
+
+    delay_dir = os.path.join(config.SCRATCH_DIR, 'ifg_era_delays')
+    delay_fname = (slave_date.strftime('%Y%m%d') + '_'
+                   + master_date.strftime('%Y%m%d') + '.npy')
+    delay_fpath = os.path.join(delay_dir, delay_fname)
+
+    delay = np.load(delay_fpath)
+
+    lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                           'grid.txt'))
+
+    # Get a mask for water from one of the interferograms
+    ifg_path = os.path.join(config.SCRATCH_DIR,
+                            'uifg_resampled',
+                            (slave_date.strftime('%Y%m%d') + '_'
+                             + master_date.strftime('%Y%m%d') + '.npy'))
+    ifg_data = np.load(ifg_path)
+    ifg_data = np.ma.masked_values(ifg_data, 0)
+
+    delay = np.ma.masked_invalid(delay)
+
+    # Combine masks
+    delay.mask = ifg_data.mask | delay.mask
+
+    ifg = {
+        'lons': lons,
+        'lats': lats,
+        'data': delay,
+        'master_date': master_date,
+        'slave_date': slave_date,
+    }
+
+    fig, bmap = plot_ifg(ifg)
+
+    title_str = ("Total Delay\nMaster Date: {}\nSlave Date: {}"
+                 .format(master_date.strftime('%Y%m%d'),
+                         slave_date.strftime('%Y%m%d')))
+    axes = fig.get_axes()[0]
+    axes.set_title(title_str)
+
+    if output:
+        fig.savefig(output, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
-    parser.add_argument('-d', action='store', default='.', help='The project directory')
-    parser.add_argument('-r', '--coast-detail', action='store', default='i', help='Resolution of coastlines in the plot.')
+    parser.add_argument('-d', action='store', default='.', help=('The project'
+                                                                 'directory'))
+    parser.add_argument('-r', '--coast-detail', action='store',
+                        default='i',
+                        help='Resolution of coastlines in the plot.')
     subparsers = parser.add_subparsers()
 
     # Plot unwrapped interferogram parser
@@ -991,6 +1051,25 @@ if __name__ == '__main__':
                                   default=None,
                                   help='Output file name')
     sar_delay_parser.set_defaults(func=_plot_sar_delay)
+
+    insar_delay_parser = subparsers.add_parser('insar-delay',
+                                               help=('Plot InSAR delays'
+                                                     'computed by pysarts'))
+    insar_delay_parser.add_argument('-m', '--master-date',
+                                    action='store',
+                                    default=None,
+                                    required=True,
+                                    help='Master date to plot delay for')
+    insar_delay_parser.add_argument('-s', '--slave-date',
+                                    action='store',
+                                    default=None,
+                                    required=True,
+                                    help='Slave date to plot delay for')
+    insar_delay_parser.add_argument('-o', '--output',
+                                    action='store',
+                                    default=None,
+                                    help='Output file name')
+    insar_delay_parser.set_defaults(func=_plot_insar_delay)
 
     args = parser.parse_args()
     os.chdir(args.d)
