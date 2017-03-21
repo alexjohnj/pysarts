@@ -873,8 +873,8 @@ def plot_insar_delay(master_date, slave_date, output=None):
     fig, bmap = plot_ifg(ifg)
 
     title_str = ("Total Delay\nMaster Date: {}\nSlave Date: {}"
-                 .format(master_date.strftime('%Y%m%d'),
-                         slave_date.strftime('%Y%m%d')))
+                 .format(master_date.strftime('%Y-%m-%d'),
+                         slave_date.strftime('%Y-%m-%d')))
     axes = fig.get_axes()[0]
     axes.set_title(title_str)
 
