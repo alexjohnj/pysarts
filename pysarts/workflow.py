@@ -469,23 +469,27 @@ def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds):
     Used to run the main calculation in parallel.
     """
     # Load weather models before and after the acquisition time.
-    logging.info('Loading weather models for date %s', date.strftime('%Y%m%d'))
+    logging.info('Loading weather models for date %s',
+                 date.strftime('%Y-%m-%d'))
     before_path, after_path = find_closest_weather_radar_files(date,
                                                                config.ERA_MODELS_PATH)
     before_model = ERAModel.load_era_netcdf(before_path)
     after_model = ERAModel.load_era_netcdf(after_path)
 
     # Clip and resample weather model onto master grid.
-    logging.info('Clipping and resampling weather models to target region')
+    logging.info('Resampling weather models for date %s',
+                 date.strftime('%Y-%m-%d'))
     before_model.clip(lon_bounds, lat_bounds)
     after_model.clip(lon_bounds, lat_bounds)
     before_model.resample(dem['lons'], dem['lats'])
     after_model.resample(dem['lons'], dem['lats'])
 
     # Calculate the delay for models before and after the acquisition.
-    logging.info('Calculating zenith delay for model before acquisition')
+    logging.info('Calculating zenith delay for model %s',
+                 before_model.strftime('%Y-%m-%d'))
     delay_before = corrections.calculate_era_zenith_delay(before_model, dem)
-    logging.info('Calculating zenith delay for model after acquisition')
+    logging.info('Calculating zenith delay for model %s',
+                 after_model.strftime('%Y-%m-%d'))
     delay_after = corrections.calculate_era_zenith_delay(after_model, dem)
 
     # Calculate the weighting for the two models
