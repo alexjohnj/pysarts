@@ -140,7 +140,7 @@ def read_grid_from_file(path):
     return (lons, lats)
 
 
-def find_closest_weather_radar_files(master_date, target_dir=config.WEATHER_RADAR_DIR):
+def find_closest_weather_radar_files(master_date, target_dir=None):
     """Searches the weather radar directory for the closest weather radar images
     before and after a date and time.
 
@@ -162,6 +162,9 @@ def find_closest_weather_radar_files(master_date, target_dir=config.WEATHER_RADA
     If an exact match is found for the given date, the same path will be
     returned twice.
     """
+    if target_dir is None:
+        target_dir = config.WEATHER_RADAR_DIR
+
     paths = glob.glob(os.path.join(target_dir, '**/*.nc'),
                       recursive=True)
 
