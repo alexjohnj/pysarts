@@ -103,6 +103,10 @@ ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
                                               'slant delays'))
 ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
 
+clean_parser = subparsers.add_parser('clean',
+                                     help='Remove pysarts files')
+clean_parser.set_defaults(func=workflow.execute_clean_step)
+
 # Parse Arguments
 args = mainParser.parse_args()
 os.chdir(args.directory)
