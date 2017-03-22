@@ -122,7 +122,7 @@ ifg_delay_parser = subparsers.add_parser('insar-delay',
 ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
 
 liquid_delay_parser = subparsers.add_parser('liquid-delay',
-                                            help=('Estimate the liquid'
+                                            help=('Estimate the liquid '
                                                   'delay from rainfall data'))
 liquid_delay_parser.set_defaults(func=workflow.execute_calculate_liquid_delay)
 liquid_delay_parser.add_argument('-c', '--cloud-thickness',
