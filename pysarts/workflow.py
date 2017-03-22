@@ -456,14 +456,15 @@ def execute_calculate_zenith_delays(args):
         datestamp = datetime(date.year, date.month, date.day,
                              config.MASTER_DATE.hour,
                              config.MASTER_DATE.minute)
-        helper_args += [(datestamp, dem, lon_bounds, lat_bounds, args.rainfall)]
+        helper_args += [(datestamp, dem, lon_bounds, lat_bounds, args.rainfall, args.blur)]
 
     # Increase the number of processes if you've got enough memory
     with Pool(args.max_processes) as p:
         p.starmap(_parallel_zenith_delay, helper_args)
 
 
-def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None):
+def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
+                           filter_std=0):
     """Helper for zenith delay calculation step.
 
     Used to run the main calculation in parallel.
@@ -481,6 +482,10 @@ def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None):
     plevels : 2-tuple, opt
       The maximum and minimum pressure levels to use in a rainfall enhanced
       correction. Pass `None` to disable the rainfall correction.
+    filter_std : float, opt
+      The standard deviation of the Gaussian filter applied to the relative
+      humidity after modification for rainfall. Default value is 0 which
+      effectively means no filter.
     """
     # Load weather models before and after the acquisition time.
     logging.info('Loading weather models for date %s',
@@ -506,7 +511,7 @@ def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None):
         wr = nimrod.resample_wr(wr, dem['lons'], dem['lats'])
 
         pmin, pmax = min(plevels), max(plevels)
-        after_model.add_rainfall(wr['data'], pmin, pmax)
+        after_model.add_rainfall(wr['data'], pmin, pmax, filter_std)
 
     # Calculate the delay for models before and after the acquisition.
     logging.info('Calculating zenith delay for model %s',

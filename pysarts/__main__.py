@@ -101,6 +101,13 @@ zenith_delay_parser.add_argument('-r', '--rainfall',
                                        'Include the minimum and maximum'
                                        'pressure levels to modify with'
                                        'rainfall data.'))
+zenith_delay_parser.add_argument('-b', '--blur',
+                                 action='store',
+                                 default=0,
+                                 type=float,
+                                 help=('Standard deviation of Gaussian filter '
+                                       'to apply to relative humidity. Only '
+                                       'applies if -r is passed.'))
 
 slant_delay_parser = subparsers.add_parser('era-slant-delay',
                                            help=('Calculate slant delays'

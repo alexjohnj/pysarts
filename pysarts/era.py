@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from netCDF4 import Dataset
 from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter
 import numpy as np
 
 
@@ -281,7 +282,7 @@ class ERAModel(object):
 
         return None
 
-    def add_rainfall(self, rainfall, min_plevel, max_plevel):
+    def add_rainfall(self, rainfall, min_plevel, max_plevel, filter_std):
         """Update model's relative humidity using rainfall data.
 
         Where there is rainfall the relative humidity will be set to
@@ -299,6 +300,11 @@ class ERAModel(object):
           humidity in. The relative humidity will be adjusted for pressure
           levels in the range min_plevel <= plevel <= max_plevel. Should be in
           the same units as `self.pressure`.
+        filter_std : float
+          Standard deviation of the Gaussian filter to apply to the relative
+          humidity after modifying it for rainfall. A standard deviation of 0
+          implies no filtering. Filtering is only applied laterally and only to
+          pressure levels that are modified.
 
         """
         # Check dimensions of rainfall and weather model agree
@@ -322,3 +328,8 @@ class ERAModel(object):
             hum_slice = self.rel_hum[:, :, idx]
             hum_slice[rainfall >= 0.25] = 100
             self.rel_hum[:, :, idx] = hum_slice
+
+        # Filter
+        pslice = slice(max_plevel_idx, min_plevel_idx)
+        self.rel_hum[:, :, pslice] = gaussian_filter(self.rel_hum[:, :, pslice],
+                                                     (filter_std, filter_std, 0))
