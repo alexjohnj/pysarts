@@ -112,6 +112,22 @@ ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
                                               'slant delays'))
 ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
 
+liquid_delay_parser = subparsers.add_parser('liquid-delay',
+                                            help=('Estimate the liquid'
+                                                  'delay from rainfall data'))
+liquid_delay_parser.set_defaults(func=workflow.execute_calculate_liquid_delay)
+liquid_delay_parser.add_argument('-c', '--cloud-thickness',
+                                 type=int,
+                                 action='store',
+                                 required=True,
+                                 help=('Cloud layer thickness in km'))
+liquid_delay_parser.add_argument('-d', '--date',
+                                 action='store',
+                                 default=None,
+                                 help=('Date to calculate delay for.'
+                                       'Defaults to configuration master'
+                                       'date.'))
+
 clean_parser = subparsers.add_parser('clean',
                                      help='Remove pysarts files')
 clean_parser.set_defaults(func=workflow.execute_clean_step)

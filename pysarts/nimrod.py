@@ -166,3 +166,25 @@ def interp_radar(wr_before, wr_after, idate):
     iwr['interpolated'] = True
 
     return iwr
+
+
+def rainfall2lwc(wr):
+    """Estimate liquid water content from rainfall.
+
+    Arguments
+    ---------
+    wr : dict
+      A dictionary with the keys 'lats', 'lons' and 'data'. Data is a (n,m)
+      nadarray containing rainfall in mm/hr.
+
+    Returns
+    -------
+    (n,m) ndarray containing the LWC at each pixel in `wr['data']`.
+
+    Notes
+    -----
+    Liquid water content is estimated using the Marshall-Palmer (1948) droplet
+    size distribution. This may not always be appropriate.
+
+    """
+    return 8.89 * (10**-2) * (wr['data']**0.84)

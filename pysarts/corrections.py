@@ -131,6 +131,24 @@ def _calculate_zenith_delay_jit(dem, height, temp, ppwv, pressure, out_wet, out_
         out_dry[y, x] = 10**-6 * trapz(new_heights, dry_refract) * 100
 
 
+def liquid_zenith_delay(lwc, cloud_thickness):
+    """Calculate the liquid delay assuming a constant liquid water content.
+
+    Arguments
+    ---------
+    lwc : (n,m) ndarray
+      Matrix containing the liquid water content in g/m^3 at each grid point.
+    cloud_thickness (n,m) ndarry OR float
+      A matrix containing the cloud thickness at each grid point. Pass a single
+      float for a constant cloud thickness.
+
+    Returns
+    -------
+    (n,m) ndarray containing the liquid zenith delay in centimetres.
+    """
+    return 0.145 * lwc * cloud_thickness
+
+
 def zenith2slant(zenith_delay, angle):
     """Map zenith delay to slant delay using a cosine mapping.
 
