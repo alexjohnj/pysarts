@@ -110,6 +110,11 @@ era_delay_parser.add_argument('-b', '--blur',
                               help=('Standard deviation of Gaussian filter '
                                     'to apply to relative humidity. Only '
                                     'applies if -r is passed.'))
+era_delay_parser.add_argument('-d', '--dates',
+                              action='store',
+                              default=None,
+                              nargs='*',
+                              help='Limit calculations to these dates.')
 
 ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
                                          help=('Calculate interferometric'

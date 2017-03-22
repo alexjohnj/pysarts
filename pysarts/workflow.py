@@ -441,14 +441,18 @@ def execute_calculate_era_delays(args):
     processing.clip_ifg(dem, lon_bounds, lat_bounds)
     processing._resample_ifg(dem, lons, lats)
 
-    # Load in dates to calculate atmospheric delay for
-    logging.info('Loading acquisition dates')
-    date_file = os.path.join(config.SCRATCH_DIR,
-                             'uifg_ts',
-                             config.MASTER_DATE.strftime('%Y%m%d') + '.yml')
+    # Parse dates passed as command line arguments or load in all dates if none
+    # were passed
     dates = []
-    with open(date_file) as f:
-        dates = yaml.safe_load(f)
+    if args.dates is None:
+        date_file = os.path.join(config.SCRATCH_DIR,
+                                'uifg_ts',
+                                config.MASTER_DATE.strftime('%Y%m%d') + '.yml')
+        dates = []
+        with open(date_file) as f:
+            dates = yaml.safe_load(f)
+    else:
+        dates = [datetime.strptime(date, '%Y%m%d') for date in args.dates]
 
     # Build a list of arguments to pass to the parallel helper.
     helper_args = []
