@@ -5,6 +5,7 @@ import os
 from datetime import date, datetime
 import logging
 from multiprocessing.pool import Pool
+from scipy.ndimage import gaussian_filter
 
 import matplotlib.cm as cm
 import matplotlib.dates as mpl_dates
@@ -407,10 +408,10 @@ def _plot_profile(args):
         date = datetime(date.year, date.month, date.day,
                         config.MASTER_DATE.hour, config.MASTER_DATE.minute)
 
-    plot_profile(date, args.longitude, args.output)
+    plot_profile(date, args.longitude, args.blur, args.output)
 
 
-def plot_profile(master_date, longitude, fname=None):
+def plot_profile(master_date, longitude, filter_std, fname=None):
     if isinstance(master_date, str):
         master_date = datetime.strptime(master_date, '%Y%m%dT%H%M')
 
@@ -444,6 +445,7 @@ def plot_profile(master_date, longitude, fname=None):
 
     nimrod.clip_wr(wr, lon_bounds, lat_bounds)
     wr = nimrod.resample_wr(wr, ifg['lons'], ifg['lats'])
+    wr['data'] = gaussian_filter(wr['data'], filter_std)
 
     # Plot and configure IFG
     _, bmap_ifg = plot_ifg(ifg, axes=ifg_ax)
@@ -976,6 +978,13 @@ if __name__ == '__main__':
                                         action='store',
                                         default=None,
                                         help='The date to plot a profile for.')
+    plot_profile_subparser.add_argument('-b', '--blur',
+                                        action='store',
+                                        default=0,
+                                        type=float,
+                                        help=('Standard deviation of Gaussian '
+                                              'filter to apply to rainfall '
+                                              'data.'))
     plot_profile_subparser.add_argument('-o', '--output',
                                         action='store',
                                         default=None,
