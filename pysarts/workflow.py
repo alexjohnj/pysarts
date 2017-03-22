@@ -180,8 +180,8 @@ def find_closest_weather_radar_files(master_date, target_dir=None):
     wr_before_path = paths[time_deltas.index(shortest_delta_before[0])]
     wr_after_path = paths[time_deltas.index(shortest_delta_after[-1])]
 
-    logging.info('Closest file before %s is %s', master_date, wr_before_path)
-    logging.info('Closest file after %s is %s', master_date, wr_after_path)
+    logging.debug('Closest file before %s is %s', master_date, wr_before_path)
+    logging.debug('Closest file after %s is %s', master_date, wr_after_path)
 
     return (wr_before_path, wr_after_path)
 
