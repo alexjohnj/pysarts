@@ -401,7 +401,14 @@ def plot_weather(wr_date, full=False, fname=None):
 
 
 def _plot_profile(args):
-    plot_profile(config.MASTER_DATE, args.longitude, args.output)
+    date = args.date or config.MASTER_DATE
+    if isinstance(date, str):
+        date = datetime.strptime(date, '%Y%m%d')
+        date = datetime(date.year, date.month, date.day,
+                        config.MASTER_DATE.hour, config.MASTER_DATE.minute)
+
+    plot_profile(date, args.longitude, args.output)
+
 
 def plot_profile(master_date, longitude, fname=None):
     if isinstance(master_date, str):
@@ -965,6 +972,10 @@ if __name__ == '__main__':
                                         nargs=1,
                                         type=float,
                                         required=True)
+    plot_profile_subparser.add_argument('-d', '--date',
+                                        action='store',
+                                        default=None,
+                                        help='The date to plot a profile for.')
     plot_profile_subparser.add_argument('-o', '--output',
                                         action='store',
                                         default=None,
