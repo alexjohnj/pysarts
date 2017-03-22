@@ -326,7 +326,7 @@ class ERAModel(object):
         # reinsert it.
         for idx in range(max_plevel_idx, min_plevel_idx + 1):
             hum_slice = self.rel_hum[:, :, idx]
-            hum_slice[rainfall >= 0.25] = 100
+            hum_slice[rainfall > 0] = 100
             self.rel_hum[:, :, idx] = hum_slice
 
         # Filter
