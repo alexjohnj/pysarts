@@ -669,24 +669,31 @@ def execute_clean_step(args):
         print('Aborting')
         exit(0)
 
-    ifg_resampled_dir = os.path.join(config.SCRATCH_DIR,
-                                     'uifg_resampled')
-    ifg_ts_dir = os.path.join(config.SCRATCH_DIR,
-                              'uifg_ts')
-    master_atmos_dir = os.path.join(config.SCRATCH_DIR,
-                                    'master_atmosphere')
-    dem_error_dir = os.path.join(config.SCRATCH_DIR,
-                                 'dem_error')
-    slant_delays_dir = os.path.join(config.SCRATCH_DIR,
-                                    'slant_delays')
-    zenith_delays_dir = os.path.join(config.SCRATCH_DIR,
-                                     'zenith_delays')
-    ifg_era_delays_dir = os.path.join(config.SCRATCH_DIR,
-                                      'ifg_era_delays')
+    dirs = []
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'uifg_resampled')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'uifg_ts')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'master_atmosphere')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'dem_error')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'slant_delays')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'zenith_delays')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'ifg_era_delays')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'liquid_slant_delays')
+    dirs += os.path.join(config.SCRATCH_DIR,
+                         'lwc')
 
-    dirs = [ifg_resampled_dir, ifg_ts_dir, master_atmos_dir, dem_error_dir,
-            slant_delays_dir, zenith_delays_dir, ifg_era_delays_dir]
-    [shutil.rmtree(dir) for dir in dirs]
+    for dir in dirs:
+        try:
+            shutil.rmtree(dir)
+        except FileNotFoundError:
+            pass
 
     # Remove grid file
     os.remove(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
