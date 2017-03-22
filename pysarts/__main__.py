@@ -84,39 +84,36 @@ train_export_parser = subparsers.add_parser('export-train',
                                             help='Export files for processing with TRAIN')
 train_export_parser.set_defaults(func=workflow.execute_export_train)
 
-zenith_delay_parser = subparsers.add_parser('era-zenith-delay',
-                                            help='Calculate zenith delays from ERA')
-zenith_delay_parser.set_defaults(func=workflow.execute_calculate_zenith_delays)
-zenith_delay_parser.add_argument('-c', '--max-processes',
-                                 action='store',
-                                 type=int,
-                                 default=2,
-                                 help='Maximum number of subprocesses to spawn')
-zenith_delay_parser.add_argument('-r', '--rainfall',
-                                 action='store',
-                                 nargs=2,
-                                 default=None,
-                                 type=int,
-                                 help=('Include rainfall data in correction.'
-                                       'Include the minimum and maximum'
-                                       'pressure levels to modify with'
-                                       'rainfall data.'))
-zenith_delay_parser.add_argument('-b', '--blur',
-                                 action='store',
-                                 default=0,
-                                 type=float,
-                                 help=('Standard deviation of Gaussian filter '
-                                       'to apply to relative humidity. Only '
-                                       'applies if -r is passed.'))
-
-slant_delay_parser = subparsers.add_parser('era-slant-delay',
-                                           help=('Calculate slant delays'
-                                                 'from zenith delays'))
-slant_delay_parser.set_defaults(func=workflow.execute_calculate_slant_delays)
+era_delay_parser = subparsers.add_parser('era-delay',
+                                         help=('Calculate wet and dry delays '
+                                               'using ERA-interim weather '
+                                               'models'))
+era_delay_parser.set_defaults(func=workflow.execute_calculate_era_delays)
+era_delay_parser.add_argument('-c', '--max-processes',
+                              action='store',
+                              type=int,
+                              default=2,
+                              help='Maximum number of subprocesses to spawn')
+era_delay_parser.add_argument('-r', '--rainfall',
+                              action='store',
+                              nargs=2,
+                              default=None,
+                              type=int,
+                              help=('Include rainfall data in correction.'
+                                    'Include the minimum and maximum'
+                                    'pressure levels to modify with'
+                                    'rainfall data.'))
+era_delay_parser.add_argument('-b', '--blur',
+                              action='store',
+                              default=0,
+                              type=float,
+                              help=('Standard deviation of Gaussian filter '
+                                    'to apply to relative humidity. Only '
+                                    'applies if -r is passed.'))
 
 ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
-                                        help=('Calculate interferometric'
-                                              'slant delays'))
+                                         help=('Calculate interferometric'
+                                               'slant delays'))
 ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
 
 liquid_delay_parser = subparsers.add_parser('liquid-delay',

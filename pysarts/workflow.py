@@ -408,7 +408,7 @@ end
     with open(os.path.join(output_directory, 'setup.m'), 'w') as f:
         f.write(setup_script_contents)
 
-def execute_calculate_zenith_delays(args):
+def execute_calculate_era_delays(args):
     """For all dates calculates the one-way zenith delay produced by the wet and dry
     components of the atmosphere. Outputs are saved into
     SCRATCH_DIR/zenith_delay folder with the names DATE_dry.npy, DATE_wet.npy
@@ -460,11 +460,11 @@ def execute_calculate_zenith_delays(args):
 
     # Increase the number of processes if you've got enough memory
     with Pool(args.max_processes) as p:
-        p.starmap(_parallel_zenith_delay, helper_args)
+        p.starmap(_parallel_era_delay, helper_args)
 
 
-def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
-                           filter_std=0):
+def _parallel_era_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
+                        filter_std=0):
     """Helper for zenith delay calculation step.
 
     Used to run the main calculation in parallel.
@@ -553,28 +553,22 @@ def _parallel_zenith_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
     np.save(output_wet, delay['wet'])
     np.save(output_total, delay['total'])
 
+    # Calculate the slant delay
+    output_base = os.path.join(config.SCRATCH_DIR,
+                               'slant_delays')
+    os.makedirs(output_base, exist_ok=True)
+    output_wet = os.path.join(output_base,
+                              date.strftime('%Y%m%d') + '_wet.npy')
+    output_dry = output_wet.replace('_wet', '_dry')
+    output_total = output_wet.replace('_wet', '_total')
 
-def execute_calculate_slant_delays(args):
-    """Calculates slant delays from the zenith delays computed previously.
-    """
-    zenith_delay_dir = os.path.join(config.SCRATCH_DIR,
-                                    'zenith_delays')
-    paths = glob.glob(os.path.join(zenith_delay_dir, '*.npy'))
-    os.makedirs(os.path.join(config.SCRATCH_DIR, 'slant_delays'), exist_ok=True)
+    slant_wet = corrections.zenith2slant(delay['wet'], np.deg2rad(21))
+    slant_dry = corrections.zenith2slant(delay['dry'], np.deg2rad(21))
+    slant_total = corrections.zenith2slant(delay['total'], np.deg2rad(21))
 
-    with Pool() as p:
-        p.map(_execute_slant_delay_helper, paths)
-
-
-def _execute_slant_delay_helper(path):
-    zenith_delay = np.load(path)
-    slant_delay = corrections.zenith2slant(zenith_delay,
-                                           np.deg2rad(21))  # TODO: Make angle configurable
-    out_file = os.path.join(config.SCRATCH_DIR,
-                            'slant_delays',
-                            os.path.basename(path))
-
-    np.save(out_file, slant_delay)
+    np.save(output_wet, slant_wet)
+    np.save(output_dry, slant_dry)
+    np.save(output_total, slant_total)
 
 
 def execute_calculate_ifg_delays(args):
