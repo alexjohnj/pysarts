@@ -116,8 +116,8 @@ era_delay_parser.add_argument('-d', '--dates',
                               nargs='*',
                               help='Limit calculations to these dates.')
 
-ifg_delay_parser = subparsers.add_parser('era-ifg-delay',
-                                         help=('Calculate interferometric'
+ifg_delay_parser = subparsers.add_parser('insar-delay',
+                                         help=('Calculate interferometric '
                                                'slant delays'))
 ifg_delay_parser.set_defaults(func=workflow.execute_calculate_ifg_delays)
 
