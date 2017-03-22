@@ -760,6 +760,8 @@ def _plot_sar_delay(args):
         kinds += ['dry']
     if args.wet:
         kinds += ['wet']
+    if args.liquid:
+        kinds += ['liquid']
     if args.total:
         kinds += ['total']
 
@@ -771,7 +773,7 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
     if isinstance(date, str):
         date = datetime.strptime(date, '%Y%m%d').date()
 
-    if kind not in ('total', 'dry', 'wet'):
+    if kind not in ('total', 'dry', 'wet', 'liquid'):
         raise KeyError('Unknown kind {}'.format(kind))
 
     datestamp = date.strftime('%Y%m%d')
@@ -811,7 +813,8 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
 
     fig, bmap = plot_ifg(ifg, center_zero=False)
 
-    title_map = {'total': 'Total', 'dry': 'Hydrostatic', 'wet': 'Wet'}
+    title_map = {'total': 'Total', 'dry': 'Hydrostatic', 'wet': 'Wet',
+                 'liquid': 'Liquid'}
     title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
                                                  date=date)
 
@@ -1046,9 +1049,12 @@ if __name__ == '__main__':
     sar_delay_parser.add_argument('-w', '--wet',
                                   action='store_true',
                                   help='Plot the wet delay')
+    sar_delay_parser.add_argument('-l', '--liquid',
+                                  action='store_true',
+                                  help='Plot the liquid delay')
     sar_delay_parser.add_argument('-t', '--total',
                                   action='store_true',
-                                  help='Plot the dry delay')
+                                  help='Plot wet + dry [+ liquid] delay')
     sar_delay_parser.add_argument('-o', '--output',
                                   action='store',
                                   default=None,
