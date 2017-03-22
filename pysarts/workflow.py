@@ -636,25 +636,32 @@ def execute_calculate_liquid_delay(args):
 
     # Calculate the liquid water content and delay
     lwc = nimrod.rainfall2lwc(wr)
-    delay = corrections.liquid_zenith_delay(lwc, cloud_thickness)
-    delay = corrections.zenith2slant(delay, np.deg2rad(21))
+    zenith_delay = corrections.liquid_zenith_delay(lwc, cloud_thickness)
+    slant_delay = corrections.zenith2slant(zenith_delay, np.deg2rad(21))
 
     # Save the slant delay and the liquid water content
+    zenith_output_dir = os.path.join(config.SCRATCH_DIR,
+                                     'zenith_delays')
     slant_output_dir = os.path.join(config.SCRATCH_DIR,
-                                    'liquid_slant_delays')
+                                    'slant_delays')
     lwc_output_dir = os.path.join(config.SCRATCH_DIR,
                                   'lwc')
-    output_name = date.strftime('%Y%m%d') + '.npy'
+    delay_output_name = date.strftime('%Y%m%d') + '_liquid' + '.npy'
+    lwc_output_name = date.strftime('%Y%m%d') + '.npy'
 
+    zenith_output_path = os.path.join(zenith_output_dir,
+                                      delay_output_name)
     slant_output_path = os.path.join(slant_output_dir,
-                                     output_name)
+                                     delay_output_name)
     lwc_output_path = os.path.join(lwc_output_dir,
-                                   output_name)
+                                   lwc_output_name)
 
+    os.makedirs(zenith_output_dir, exist_ok=True)
     os.makedirs(slant_output_dir, exist_ok=True)
     os.makedirs(lwc_output_dir, exist_ok=True)
 
-    np.save(slant_output_path, delay)
+    np.save(zenith_output_path, zenith_delay)
+    np.save(slant_output_path, slant_delay)
     np.save(lwc_output_path, lwc)
 
 
@@ -684,8 +691,6 @@ def execute_clean_step(args):
                          'zenith_delays')
     dirs += os.path.join(config.SCRATCH_DIR,
                          'ifg_era_delays')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'liquid_slant_delays')
     dirs += os.path.join(config.SCRATCH_DIR,
                          'lwc')
 
