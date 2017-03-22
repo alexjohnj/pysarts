@@ -2,7 +2,6 @@
 Module dealing with weather radar images.
 """
 from datetime import datetime
-import logging
 import os.path
 
 from netCDF4 import Dataset
@@ -38,12 +37,12 @@ def load_from_netcdf(path):
 
     return {'lons': lons, 'lats': lats, 'data': data, 'date': date}
 
+
 def clip_wr(wr, lon_bounds, lat_bounds):
     """Clip a weather radar image to a specified region.
 
     See the documentation for `processing.clip_ifg` (which this wraps).
     """
-    logging.debug('Clipping weather radar image')
     processing.clip_ifg(wr, lon_bounds, lat_bounds)
 
 
@@ -65,7 +64,6 @@ def resample_wr(wr, new_lons, new_lats):
     A copy of `wr` resampled at the new grid points.
 
     """
-    logging.debug('Resampling weather radar image')
     wr_new = wr.copy()
     wr_new['lons'] = new_lons
     wr_new['lats'] = new_lats
@@ -78,7 +76,6 @@ def resample_wr(wr, new_lons, new_lats):
                                      new_pixel_coords,
                                      method='nearest')
     wr_new['data'].shape = (len(new_lats), len(new_lons))
-    logging.debug('Resampled weather radar image')
 
     return wr_new
 
@@ -124,7 +121,6 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
     ifg_data = ifg_data[ifg_zero_idxs]
     wr_data = wr_data[ifg_zero_idxs]
 
-    logging.debug('Calculating correlation coefficient')
 
     return stats.pearsonr(wr_data, ifg_data)
 
@@ -163,7 +159,6 @@ def interp_radar(wr_before, wr_after, idate):
     time_delta = (wr_after['date'] - wr_before['date']).total_seconds()
     before_delta = (idate - wr_before['date']).total_seconds()
     before_factor = 1 - (before_delta / time_delta)
-    logging.info('Weighting before image by a factor of %.2f', before_factor)
 
     iwr = wr_before.copy()
     iwr['data'] = before_factor * wr_before['data'] + (1 - before_factor) * wr_after['data']
