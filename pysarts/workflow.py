@@ -636,8 +636,8 @@ def execute_calculate_liquid_delay(args):
 
     # Calculate the liquid water content and delay
     lwc = nimrod.rainfall2lwc(wr)
-    zenith_delay = corrections.liquid_zenith_delay(lwc, cloud_thickness)
-    slant_delay = corrections.zenith2slant(zenith_delay, np.deg2rad(21))
+    zenith_liquid = corrections.liquid_zenith_delay(lwc, cloud_thickness)
+    slant_liquid = corrections.zenith2slant(zenith_liquid, np.deg2rad(21))
 
     # Save the slant delay and the liquid water content
     zenith_output_dir = os.path.join(config.SCRATCH_DIR,
@@ -660,9 +660,29 @@ def execute_calculate_liquid_delay(args):
     os.makedirs(slant_output_dir, exist_ok=True)
     os.makedirs(lwc_output_dir, exist_ok=True)
 
-    np.save(zenith_output_path, zenith_delay)
-    np.save(slant_output_path, slant_delay)
+    np.save(zenith_output_path, zenith_liquid)
+    np.save(slant_output_path, slant_liquid)
     np.save(lwc_output_path, lwc)
+
+    # If it exists, recalculate the total delay so it includes the liquid delay
+    total_zenith_delay_path = zenith_output_path.replace('_liquid', '_total')
+    total_slant_delay_path = slant_output_path.replace('_liquid', '_total')
+
+    if os.path.exists(total_zenith_delay_path):
+        logging.info('Updating total zenith delay for %s',
+                     date.strftime('%Y-%m-%d'))
+        zenith_wet = np.load(zenith_output_path.replace('_liquid', '_wet'))
+        zenith_dry = np.load(zenith_output_path.replace('_liquid', '_dry'))
+        total_delay = zenith_wet + zenith_dry + zenith_liquid
+        np.save(total_zenith_delay_path, total_delay)
+
+    if os.path.exists(total_slant_delay_path):
+        logging.info('Updating total slant delay for %s',
+                     date.strftime('%Y-%m-%d'))
+        slant_wet = np.load(slant_output_path.replace('_liquid', '_wet'))
+        slant_dry = np.load(slant_output_path.replace('_liquid', '_dry'))
+        total_delay = slant_wet + slant_dry + slant_liquid
+        np.save(total_slant_delay_path, total_delay)
 
 
 def execute_clean_step(args):
