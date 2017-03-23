@@ -79,20 +79,21 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
                                                                  slave_date))
     ifg_name = '{}_{}'.format(slave_date, master_date)
     ifg_path = ''
-    ifg = {}
+    ifg = None
     if resampled:
         ifg_path = os.path.join(config.SCRATCH_DIR, 'uifg_resampled', ifg_name + '.npy')
         data = np.load(ifg_path)
         lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                                'grid.txt'))
-        ifg['data'] = data
-        ifg['lons'] = lons
-        ifg['lats'] = lats
-        ifg['master_date'] = datetime.strptime(master_date, '%Y%m%d').date()
-        ifg['slave_date'] = datetime.strptime(slave_date, '%Y%m%d').date()
+
+        ifg = insar.InSAR(lons,
+                          lats,
+                          data,
+                          datetime.strptime(master_date, '%Y%m%d').date(),
+                          datetime.strptime(slave_date, '%Y%m%d').date())
     else:
         ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
-        ifg = insar.open_ifg_netcdf(ifg_path)
+        ifg = insar.InSAR.from_netcdf(ifg_path)
 
     fig, _ = plot_ifg(ifg)
     if fname:
@@ -104,39 +105,44 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
 
     return None
 
+
 def plot_ifg(ifg, axes=None, center_zero=True):
-    """Plot an ifg dictionary. Returns a figure handle"""
+    """Plot an insar.InSAR instance or an insar.SAR instance. Returns a figure
+    handle"""
+
     if axes:
         fig = axes.get_figure()
     else:
         fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
         axes = fig.add_subplot(1, 1, 1)
 
-    bmap = Basemap(llcrnrlon=ifg['lons'][0],
-                   llcrnrlat=ifg['lats'][0],
-                   urcrnrlon=ifg['lons'][-1],
-                   urcrnrlat=ifg['lats'][-1],
+    bmap = Basemap(llcrnrlon=ifg.lons[0],
+                   llcrnrlat=ifg.lats[0],
+                   urcrnrlon=ifg.lons[-1],
+                   urcrnrlat=ifg.lats[-1],
                    resolution=COAST_DETAIL,
                    projection='merc',
                    ax=axes)
-    parallels = np.linspace(ifg['lats'][0], ifg['lats'][-1], 5)
-    meridians = np.linspace(ifg['lons'][0], ifg['lons'][-1], 5)
+    parallels = np.linspace(ifg.lats[0], ifg.lats[-1], 5)
+    meridians = np.linspace(ifg.lons[0], ifg.lons[-1], 5)
 
     bmap.drawcoastlines()
-    bmap.drawparallels(parallels, labels=[True, False, False, False], fmt="%.2f", fontsize=9)
-    bmap.drawmeridians(meridians, labels=[False, False, False, True], fmt="%.2f", fontsize=9)
+    bmap.drawparallels(parallels, labels=[True, False, False, False],
+                       fmt="%.2f", fontsize=9)
+    bmap.drawmeridians(meridians, labels=[False, False, False, True],
+                       fmt="%.2f", fontsize=9)
     bmap.drawmapboundary()
 
-    vmax = (np.absolute(ifg['data']).max())
+    vmax = (np.absolute(ifg.data).max())
     vmin = vmax * -1
 
-    lon_mesh, lat_mesh = np.meshgrid(ifg['lons'], ifg['lats'])
+    lon_mesh, lat_mesh = np.meshgrid(ifg.lons, ifg.lats)
 
     image = None
     if center_zero is True:
         image = bmap.pcolormesh(lon_mesh,
                                 lat_mesh,
-                                ifg['data'],
+                                ifg.data,
                                 latlon=True,
                                 cmap=cm.RdBu_r,
                                 vmin=vmin,
@@ -144,20 +150,26 @@ def plot_ifg(ifg, axes=None, center_zero=True):
     else:
         image = bmap.pcolormesh(lon_mesh,
                                 lat_mesh,
-                                ifg['data'],
+                                ifg.data,
                                 latlon=True,
                                 cmap=cm.RdBu_r,)
 
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label('LOS Delay / cm')
 
-    title = 'Unwrapped Interferogram\nMaster: {0}\nSlave: {1}'.format(
-        ifg['master_date'].strftime('%Y-%m-%d'),
-        ifg['slave_date'].strftime('%Y-%m-%d'))
-    axes.set_title(title)
+    if isinstance(ifg, insar.InSAR):
+        title = 'Unwrapped Interferogram\nMaster: {0}\nSlave: {1}'.format(
+            ifg.master_date.strftime('%Y-%m-%d'),
+            ifg.slave_date.strftime('%Y-%m-%d'))
+        axes.set_title(title)
+    else:
+        title = 'SAR Image ({})'.format(ifg.date.strftime('%Y-%m-%d'))
+        axes.set_title(title)
+
     fig.tight_layout()
 
     return fig, bmap
+
 
 def plot_time_series_ifg(master_date, slave_date, fname=None):
     if isinstance(master_date, date):
@@ -180,13 +192,11 @@ def plot_time_series_ifg(master_date, slave_date, fname=None):
         slave_date_date = datetime.strptime(slave_date, '%Y%m%d').date()
         slave_date_idx = ts_date_indexes.index(slave_date_date)
 
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': ifg_ts[:, :, slave_date_idx],
-        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
-        'slave_date': datetime.strptime(slave_date, '%Y%m%d').date()
-    }
+    ifg = insar.InSAR(lons,
+                      lats,
+                      ifg_ts[:, :, slave_date_idx],
+                      datetime.strptime(master_date, '%Y%m%d').date(),
+                      datetime.strptime(slave_date, '%Y%m%d').date())
 
     fig, _ = plot_ifg(ifg)
     if fname:
@@ -213,17 +223,16 @@ def plot_dem_error(master_date, fname=None):
                         mmap_mode='r')
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                            'grid.txt'))
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': dem_error,
-        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
-        'slave_date': datetime.today().date()  # Dummy value
-    }
 
-    fig, _ = plot_ifg(ifg)
+    sar = insar.SAR(lons,
+                    lats,
+                    dem_error,
+                    datetime.strptime(master_date, '%Y%m%d').date())
+
+    fig, _ = plot_ifg(sar)
     axes = fig.get_axes()[0]
-    axes.set_title('DEM Error\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
+    axes.set_title('DEM Error\n{}'
+                   .format(sar.date.strftime('%Y-%m-%d')))
     if fname:
         fig.savefig(fname, bbox_inches='tight')
     else:
@@ -251,17 +260,15 @@ def plot_master_atmosphere(master_date, fname=None):
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                            'grid.txt'))
 
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': master_atmosphere,
-        'master_date': datetime.strptime(master_date, '%Y%m%d').date(),
-        'slave_date': datetime.today().date() # Dummy value
-    }
+    sar = insar.SAR(lons,
+                    lats,
+                    master_atmosphere,
+                    datetime.strptime(master_date, '%Y%m%d').date())
 
-    fig, _ = plot_ifg(ifg)
+    fig, _ = plot_ifg(sar)
     axes = fig.get_axes()[0]
-    axes.set_title('Master Atmosphere\n{}'.format(ifg['master_date'].strftime('%Y-%m-%d')))
+    axes.set_title('Master Atmosphere\n{}'
+                   .format(sar.date.strftime('%Y-%m-%d')))
     if fname:
         fig.savefig(fname, bbox_inches='tight')
     else:
@@ -285,7 +292,7 @@ def plot_delay_rainfall_scatter(date, fname=None):
     _, wr_path = workflow.find_closest_weather_radar_files(date)
 
     atmos = np.load(atmos_path)
-    wr = nimrod.load_from_netcdf(wr_path)
+    wr = nimrod.Nimrod.from_netcdf(wr_path)
 
     # Load in the grid and resample the weather radar image to it.
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
@@ -295,12 +302,12 @@ def plot_delay_rainfall_scatter(date, fname=None):
     lon_bounds = (lon_min - 0.5, lon_max + 0.5)
     lat_bounds = (lat_min - 0.5, lat_max + 0.5)
 
-    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
-    wr = nimrod.resample_wr(wr, lons, lats)
+    wr.clip(lon_bounds, lat_bounds)
+    wr.interp(lons, lats, method='nearest')
 
     fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
     axes = fig.add_subplot(1, 1, 1)
-    axes.plot(wr['data'].ravel(), atmos.ravel(), 'o')
+    axes.plot(wr.data.ravel(), atmos.ravel(), 'o')
 
     axes.set_xlabel(r'Rainfall Rate / mm hr$^{-1}$')
     axes.set_ylabel(r'LOS Delay / cm')
@@ -316,23 +323,24 @@ def plot_delay_rainfall_scatter(date, fname=None):
 
 
 def plot_wr(wr, axes=None):
-    """Plot a weather radar dictionary. Returns a figure handle and a basemap object."""
+    """Plot a `nimrod.Nimrod` instance. Returns a figure handle and a basemap
+    object."""
     if axes:
         fig = axes.get_figure()
     else:
         fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
         axes = fig.add_subplot(1, 1, 1)
 
-    bmap = Basemap(llcrnrlon=wr['lons'][0],
-                   llcrnrlat=wr['lats'][0],
-                   urcrnrlon=wr['lons'][-1],
-                   urcrnrlat=wr['lats'][-1],
+    bmap = Basemap(llcrnrlon=wr.lons[0],
+                   llcrnrlat=wr.lats[0],
+                   urcrnrlon=wr.lons[-1],
+                   urcrnrlat=wr.lats[-1],
                    resolution=COAST_DETAIL,
                    projection='merc',
                    ax=axes)
 
-    parallels = np.linspace(wr['lats'][0], wr['lats'][-1], 5)
-    meridians = np.linspace(wr['lons'][0], wr['lons'][-1], 5)
+    parallels = np.linspace(wr.lats[0], wr.lats[-1], 5)
+    meridians = np.linspace(wr.lons[0], wr.lons[-1], 5)
 
     bmap.drawcoastlines()
     bmap.drawparallels(parallels, labels=[True, False, False, False],
@@ -341,10 +349,10 @@ def plot_wr(wr, axes=None):
                        fmt="%.2f", fontsize=9)
     bmap.drawmapboundary()
 
-    lon_mesh, lat_mesh = np.meshgrid(wr['lons'], wr['lats'])
+    lon_mesh, lat_mesh = np.meshgrid(wr.lons, wr.lats)
     image = bmap.pcolormesh(lon_mesh,
                             lat_mesh,
-                            np.ma.masked_values(wr['data'], 0),
+                            np.ma.masked_values(wr.data, 0),
                             latlon=True,
                             cmap=cm.Spectral_r,
                             vmin=0)
@@ -352,12 +360,12 @@ def plot_wr(wr, axes=None):
     cbar = fig.colorbar(image, pad=0.07, ax=axes)
     cbar.set_label(r'Rainfall / mm hr$^{-1}$')
 
-    if 'interpolated' in wr and wr['interpolated'] is True:
+    if wr.interpolated:
         title = ('Rainfall Radar Image\n({0})[I]'
-                 .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
+                 .format(wr.date.strftime('%Y-%m-%dT%H:%M')))
     else:
         title = ('Rainfall Radar Image\n({0})'
-                 .format(wr['date'].strftime('%Y-%m-%dT%H:%M')))
+                 .format(wr.date.strftime('%Y-%m-%dT%H:%M')))
 
     axes.set_title(title)
     fig.tight_layout()
@@ -385,15 +393,15 @@ def plot_weather(wr_date, full=False, fname=None):
         logging.warning('Found two different radar images near %s. Interpolating',
                         wr_date)
 
-    wr_before = nimrod.load_from_netcdf(wr_before)
-    wr_after = nimrod.load_from_netcdf(wr_after)
-    wr = nimrod.interp_radar(wr_before, wr_after, wr_date)
+    wr_before = nimrod.Nimrod.from_netcdf(wr_before)
+    wr_after = nimrod.Nimrod.from_netcdf(wr_after)
+    wr = nimrod.Nimrod.interp_radar(wr_before, wr_after, wr_date)
 
     if not full:
         # Clip image to target region
         lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
         lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
-        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
+        wr.clip(lon_bounds, lat_bounds)
 
     fig, _ = plot_wr(wr)
 
@@ -419,7 +427,7 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
         master_date = datetime.strptime(master_date, '%Y%m%dT%H%M')
 
     fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
-    ifg_ax = plt.subplot2grid((2, 2), (0, 0))
+    sar_ax = plt.subplot2grid((2, 2), (0, 0))
     wr_ax = plt.subplot2grid((2, 2), (0, 1))
     profile_ax = plt.subplot2grid((2, 2), (1, 0), colspan=2)
 
@@ -431,30 +439,27 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                            'grid.txt'))
 
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': master_atmosphere,
-        'master_date': master_date,
-        'slave_date': datetime.today().date()
-    }
+    sar = insar.SAR(lons,
+                    lats,
+                    master_atmosphere,
+                    master_date)
 
     # Load weather radar image, clip and resample to IFG resolution.
-    lon_bounds = (np.amin(ifg['lons']), np.amax(ifg['lons']))
-    lat_bounds = (np.amin(ifg['lats']), np.amax(ifg['lats']))
+    lon_bounds = (np.amin(sar.lons), np.amax(sar.lons))
+    lat_bounds = (np.amin(sar.lats), np.amax(sar.lats))
 
     _, wr_after_path = workflow.find_closest_weather_radar_files(master_date)
-    wr = nimrod.load_from_netcdf(wr_after_path)
+    wr = nimrod.Nimrod.from_netcdf(wr_after_path)
 
-    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
-    wr = nimrod.resample_wr(wr, ifg['lons'], ifg['lats'])
-    wr['data'] = gaussian_filter(wr['data'], filter_std)
+    wr.clip(lon_bounds, lat_bounds)
+    wr.interp(sar.lons, sar.lats, method='nearest')
+    wr.data = gaussian_filter(wr.data, filter_std)
 
-    # Plot and configure IFG
-    _, bmap_ifg = plot_ifg(ifg, axes=ifg_ax)
-    ifg_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
-    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=ifg_ax)
-    bmap_ifg.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=ifg_ax)
+    # Plot and configure sar
+    _, bmap_sar = plot_ifg(sar, axes=sar_ax)
+    sar_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
+    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=sar_ax)
+    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=sar_ax)
 
     # Plot and configure weather radar image
     _, bmap_wr = plot_wr(wr, axes=wr_ax)
@@ -463,15 +468,15 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
 
     # Plot the profile
     ## LOS Delay
-    ifg_lon_idx = np.argmin(np.absolute(ifg['lons'] - longitude))
-    wr_lon_idx = np.argmin(np.absolute(wr['lons'] - longitude))
-    profile_ax.plot(ifg['lats'], ifg['data'][:, ifg_lon_idx])
+    sar_lon_idx = np.argmin(np.absolute(sar.lons - longitude))
+    wr_lon_idx = np.argmin(np.absolute(wr.lons - longitude))
+    profile_ax.plot(sar.lats, sar.data[:, sar_lon_idx])
     profile_ax.set_ylabel('LOS Delay / cm')
     profile_ax.set_xlabel(r'Latitude / $\degree$')
 
     ## Rainfall
     profile_ax_rain = profile_ax.twinx()
-    profile_ax_rain.plot(wr['lats'], wr['data'][:, wr_lon_idx], color='orange')
+    profile_ax_rain.plot(wr.lats, wr.data[:, wr_lon_idx], color='orange')
     profile_ax_rain.tick_params('y', colors='orange')
     profile_ax_rain.set_ylabel(r'Rainfall / mm hr$^{-1}$')
 
@@ -623,15 +628,12 @@ def plot_train_sar_delay(master_date, kind='total', output=None):
     # Combine masks
     data.mask = ifg_data.mask | data.mask
 
-    ifg = {
-        'lons': era_delays['lons'],
-        'lats': era_delays['lats'],
-        'data': data,
-        'master_date': master_date,
-        'slave_date': datetime.today().date(),
-    }
+    sar = insar.SAR(era_delays['lons'],
+                    era_delays['lats'],
+                    data,
+                    master_date)
 
-    fig, bmap = plot_ifg(ifg, center_zero=False)
+    fig, bmap = plot_ifg(sar, center_zero=False)
 
     title_map = {'total': 'Total', 'hydro': 'Hydrostatic', 'wet': 'Wet'}
     title_str = "{kind:s} Delay\n{date:}".format(kind=title_map[kind],
@@ -737,13 +739,11 @@ def plot_train_ifg_delay(master_date, slave_date, kind='total', output=None):
     # Combine masks
     data.mask = ifg_data.mask | data.mask
 
-    ifg = {
-        'lons': corrections['lons'],
-        'lats': corrections['lats'],
-        'data': data,
-        'master_date': master_date,
-        'slave_date': slave_date,
-    }
+    ifg = insar.InSAR(corrections['lons'],
+                      corrections['lats'],
+                      data,
+                      master_date,
+                      slave_date)
 
     fig, bmap = plot_ifg(ifg)
     axes = fig.get_axes()[0]
@@ -787,21 +787,17 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
     datestamp = date.strftime('%Y%m%d')
     delay_dir = ""
     if zenith:
-        delay_dir = os.path.join(config.SCRATCH_DIR,
-                                 'zenith_delays')
+        delay_dir = os.path.join(config.SCRATCH_DIR, 'zenith_delays')
     else:
-        delay_dir = os.path.join(config.SCRATCH_DIR,
-                                 'slant_delays')
+        delay_dir = os.path.join(config.SCRATCH_DIR, 'slant_delays')
 
-    delay_file = os.path.join(delay_dir,
-                              datestamp + '_' + kind + '.npy')
+    delay_file = os.path.join(delay_dir, datestamp + '_' + kind + '.npy')
     delay = np.load(delay_file)
     lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
                                                            'grid.txt'))
 
     # Get a mask for water from one of the interferograms
-    ifg_path = os.path.join(config.SCRATCH_DIR,
-                            'master_atmosphere',
+    ifg_path = os.path.join(config.SCRATCH_DIR, 'master_atmosphere',
                             config.MASTER_DATE.strftime('%Y%m%d') + '.npy')
     ifg_data = np.load(ifg_path)
     ifg_data = np.ma.masked_values(ifg_data, 0)
@@ -811,15 +807,9 @@ def plot_sar_delay(date, kind='total', zenith=False, output=None):
     # Combine masks
     delay.mask = ifg_data.mask | delay.mask
 
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': delay,
-        'master_date': date,
-        'slave_date': datetime.today().date(),
-    }
+    sar = insar.SAR(lons, lats, delay, date)
 
-    fig, bmap = plot_ifg(ifg, center_zero=False)
+    fig, bmap = plot_ifg(sar, center_zero=False)
 
     title_map = {'total': 'Total', 'dry': 'Hydrostatic', 'wet': 'Wet',
                  'liquid': 'Liquid'}
@@ -850,7 +840,7 @@ def plot_insar_delay(master_date, slave_date, output=None):
     if isinstance(slave_date, str):
         slave_date = datetime.strptime(slave_date, '%Y%m%d')
 
-    delay_dir = os.path.join(config.SCRATCH_DIR, 'ifg_era_delays')
+    delay_dir = os.path.join(config.SCRATCH_DIR, 'insar_atmos_delays')
     delay_fname = (slave_date.strftime('%Y%m%d') + '_'
                    + master_date.strftime('%Y%m%d') + '.npy')
     delay_fpath = os.path.join(delay_dir, delay_fname)
@@ -873,13 +863,7 @@ def plot_insar_delay(master_date, slave_date, output=None):
     # Combine masks
     delay.mask = ifg_data.mask | delay.mask
 
-    ifg = {
-        'lons': lons,
-        'lats': lats,
-        'data': delay,
-        'master_date': master_date,
-        'slave_date': slave_date,
-    }
+    ifg = insar.InSAR(lons, lats, delay, master_date, slave_date)
 
     fig, bmap = plot_ifg(ifg)
 

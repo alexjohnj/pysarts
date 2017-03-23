@@ -1,7 +1,7 @@
 """The ERA module contains functions for reading and processing weather model
 output from era-interim.
 
-The core data structure for this module is the *era_model* dictionary. This is
+The core data structure for this module is the *era_model* class. This is
 a dictionary with the following keys:
 """
 

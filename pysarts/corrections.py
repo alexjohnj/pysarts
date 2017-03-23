@@ -4,6 +4,7 @@ import numpy as np
 from numba import jit
 import numba
 from .util import trapz, interp1d_jit
+from .insar import SAR
 
 
 @jit
@@ -15,23 +16,20 @@ def calculate_era_zenith_delay(model, dem):
     --------
     model : ERAModel
       The weather model to use in the delay calculation.
-    dem : dict
-      A dictionary with the keys 'lats', 'lons' and 'data'. Defines the DEM
-      with height in metres.
+    dem : geogrid.GeoGrid
+      A GeoGrid instance defining the DEM in metres.
 
     Returns
     -------
-    A dictionary with the keys 'lats', 'lons', 'wet_delay', 'dry_delay' and
-    'data'. Data is an (n,m) ndarray containing the one-way delay in
-    centimetres. 'wet_delay' and 'dry_delay' contain the corresponding delay
-    components in centimetres.
+    A three tuple containing (wet_delay, dry_delay and total_delay) that are
+    instances of insar.SAR containing the one-way zenith delay in centimetres.
 
     Notes
     -----
     `model` should be interpolated so it is on the same grid as `dem`.
     """
-    if (dem['lats'].size != model.lats.size
-        or dem['lons'].size != model.lons.size):
+    if (dem.lats.size != model.lats.size
+        or dem.lons.size != model.lons.size):
         raise IndexError('Size of model grid does not match size of dem')
 
     # Allocate output arrays
@@ -42,21 +40,18 @@ def calculate_era_zenith_delay(model, dem):
     height = model.height
     ppwv = model.ppwv
 
-    dry_delay = np.empty(dem['data'].shape)
-    wet_delay = np.empty(dem['data'].shape)
+    dry_delay = np.empty(dem.data.shape)
+    wet_delay = np.empty(dem.data.shape)
 
-    _calculate_zenith_delay_jit(dem['data'], height, model.temp, ppwv,
+    _calculate_zenith_delay_jit(dem.data, height, model.temp, ppwv,
                                 model.pressure, wet_delay, dry_delay)
 
-    output = {
-        'lons': model.lons,
-        'lats': model.lats,
-        'data': dry_delay + wet_delay,
-        'wet_delay': wet_delay,
-        'dry_delay': dry_delay,
-    }
+    wet_delay = SAR(model.lons, model.lats, wet_delay, model.date)
+    dry_delay = SAR(model.lons, model.lats, dry_delay, model.date)
+    total_delay = SAR(model.lons, model.lats, dry_delay.data + wet_delay.data,
+                      model.date)
 
-    return output
+    return (wet_delay, dry_delay, total_delay)
 
 
 @jit(numba.void(numba.float64[:, :],
@@ -136,8 +131,8 @@ def liquid_zenith_delay(lwc, cloud_thickness):
 
     Arguments
     ---------
-    lwc : (n,m) ndarray
-      Matrix containing the liquid water content in g/m^3 at each grid point.
+    lwc : nimrod.Nimrod
+      Nimrod instance containing the liquid water content in g/cm^3.
     cloud_thickness (n,m) ndarry OR float
       A matrix containing the cloud thickness at each grid point. Pass a single
       float for a constant cloud thickness.
@@ -146,25 +141,8 @@ def liquid_zenith_delay(lwc, cloud_thickness):
     -------
     (n,m) ndarray containing the liquid zenith delay in centimetres.
     """
-    return 0.145 * lwc * cloud_thickness
-
-
-def zenith2slant(zenith_delay, angle):
-    """Map zenith delay to slant delay using a cosine mapping.
-
-    Arguments
-    ---------
-    zenith_delay : (n,m) ndarray
-      Matrix containing the zenith delay.
-    angle : float or (n,m) ndarray
-      The look angle at each point in radians the interferogram or a single
-      number for a constant look angle.
-
-    Returns
-    -------
-    A matrix of size (n,m) containing the slant delay.
-    """
-    return zenith_delay / np.cos(angle)
+    delay = 0.145 * lwc.data * cloud_thickness
+    return SAR(lwc.lons, lwc.lats, delay, lwc.date)
 
 
 def calc_ifg_delay(master_delay, slave_delay):

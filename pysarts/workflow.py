@@ -16,6 +16,7 @@ import scipy.io as scpio
 
 import matplotlib.pyplot as plt
 
+from .geogrid import GeoGrid
 from .era import ERAModel
 from . import corrections
 from . import config
@@ -44,27 +45,26 @@ def load_clip_resample(path):
 
     Clipping and resampling is based on the user's configuration.
 
-    Returns an ifg dictionary that contains the clipped data.
-
     """
     SHOULD_CLIP = config.REGION != None
     SHOULD_RESAMPLE = config.RESOLUTION != None
 
     logging.info('Processing %s', os.path.splitext(os.path.basename(path))[0])
     logging.debug('Loading %s', path)
-    ifg = insar.open_ifg_netcdf(path)
+    ifg = insar.InSAR.from_netcdf(path)
 
     if SHOULD_CLIP:
         logging.debug('Clipping')
         lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
         lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
-        insar.clip_ifg(ifg, lon_bounds, lat_bounds)
+        ifg.clip(lon_bounds, lat_bounds)
     else:
         logging.debug('Clipping disabled')
 
     if SHOULD_RESAMPLE:
         logging.debug('Resampling')
-        insar.resample_ifg(ifg, config.RESOLUTION['delta_x'], config.RESOLUTION['delta_y'])
+        ifg.interp_at_res(config.RESOLUTION['delta_x'],
+                          config.RESOLUTION['delta_y'])
     else:
         logging.debug('Resampling disabled')
 
@@ -78,23 +78,25 @@ def load_clip_resample(path):
     return None
 
 def save_ifg_to_npy(ifg, out_dir):
-    """Saves an ifg dict as a Numpy array.
+    """Saves an insar.InSAR instance as a Numpy array.
 
     The file name will be SLAVEDATE_MASTERDATE.npy
     """
-    out_name = (ifg['slave_date'].strftime('%Y%m%d') + '_' + ifg['master_date'].strftime('%Y%m%d')
+    out_name = (ifg.slave_date.strftime('%Y%m%d') + '_'
+                + ifg.master_date.strftime('%Y%m%d')
                 + '.npy')
     out_path = os.path.join(out_dir, out_name)
     os.makedirs(out_dir, exist_ok=True)
     logging.debug('Saving %s', out_path)
 
     # MaskedArrays can't be saved yet.
-    if isinstance(ifg['data'], np.ma.MaskedArray):
-        np.save(out_path, ifg['data'].data)
+    if isinstance(ifg.data, np.ma.MaskedArray):
+        np.save(out_path, ifg.data)
     else:
-        np.save(out_path, ifg['data'])
+        np.save(out_path, ifg.data)
 
     return None
+
 
 def extract_grid_from_ifg(ifg, output_name):
     """Extracts information necessary to reconstruct the grid and saves it to a
@@ -104,18 +106,19 @@ def extract_grid_from_ifg(ifg, output_name):
        lon=lon_min:lon_max:nlon
        lat=lat_min:lat_max:nlat
     """
-    lon_min = np.amin(ifg['lons'])
-    lon_max = np.amax(ifg['lons'])
-    nlon = len(ifg['lons'])
-    lat_min = np.amin(ifg['lats'])
-    lat_max = np.amax(ifg['lats'])
-    nlat = len(ifg['lats'])
+    lon_min = np.amin(ifg.lons)
+    lon_max = np.amax(ifg.lons)
+    nlon = ifg.lons.size
+    lat_min = np.amin(ifg.lats)
+    lat_max = np.amax(ifg.lats)
+    nlat = ifg.lats.size
 
     with open(output_name, 'w') as f:
         f.write('lon={:.5f}:{:.5f}:{:d}\n'.format(lon_min, lon_max, nlon))
         f.write('lat={:.5f}:{:.5f}:{:d}\n'.format(lat_min, lat_max, nlat))
 
     return None
+
 
 def read_grid_from_file(path):
     """Reads a grid save by extract_grid_from_ifg
@@ -305,6 +308,7 @@ def execute_calculate_dem_matmosphere_error(args):
     np.save(output_master_atmos_fname, master_atmosphere)
     np.save(output_dem_error_fname, dem_error)
 
+
 def execute_master_atmosphere_rainfall_correlation(args):
     """Calculate the correlation coefficient between weather radar rainfall and
     the master atmosphere.
@@ -314,26 +318,29 @@ def execute_master_atmosphere_rainfall_correlation(args):
     The correlation coefficient is printed to STDOUT.
 
     """
-    # Load the master atmosphere ifg
+    # Load the master atmosphere SAR image
     lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
-    ifg_data = np.load(os.path.join(config.SCRATCH_DIR,
+    sar_data = np.load(os.path.join(config.SCRATCH_DIR,
                                     'master_atmosphere',
                                     config.MASTER_DATE.strftime('%Y%m%d') + '.npy'))
-    ifg = {'lons': lons, 'lats': lats, 'data': ifg_data}
+    sar = insar.SAR(lons,
+                    lats,
+                    sar_data,
+                    config.MASTER_DATE)
 
     # Load the corresponding weather radar images
     _, wr_after_path = find_closest_weather_radar_files(config.MASTER_DATE)
-    wr_after = nimrod.load_from_netcdf(wr_after_path)
+    wr_after = nimrod.Nimrod.from_netcdf(wr_after_path)
 
-    # Clip images
+    # Clip images and resample radar image
     lon_bounds = (np.amin(lons), np.amax(lons))
     lat_bounds = (np.amin(lats), np.amax(lats))
-    nimrod.clip_wr(wr_after, lon_bounds, lat_bounds)
+    wr_after.clip(lon_bounds, lat_bounds)
+    wr_after.interp(sar.lons, sar.lats, method='nearest')
 
     # Leggo
-    (r_after, p_after) = nimrod.calc_wr_ifg_correlation(wr_after, ifg, rain_tol=args.rain_tolerance)
+    (r_after, p_after) = nimrod.calc_wr_ifg_correlation(wr_after, sar, rain_tol=args.rain_tolerance)
     print('Correlation Coefficient: {}, P-Value: {}'.format(r_after, p_after))
-
 
 
 def execute_export_train(args):
@@ -420,11 +427,11 @@ def execute_calculate_era_delays(args):
     """
     # Load the DEM for the target region.
     logging.info('Loading DEM')
-    dem = util.load_dem(config.DEM_PATH)
+    dem = GeoGrid.from_netcdf(config.DEM_PATH)
 
     # Handle NaNs in the DEM
-    dem['data'].fill_value = 0
-    dem['data'] = dem['data'].filled()
+    dem.data.fill_value = 0
+    dem.data = dem.data.filled()
 
     # Get some information about the region
     lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
@@ -438,16 +445,16 @@ def execute_calculate_era_delays(args):
 
     # Clip and resample the DEM to the target region
     logging.info('Clipping and resampling DEM to target region')
-    insar.clip_ifg(dem, lon_bounds, lat_bounds)
-    insar._resample_ifg(dem, lons, lats)
+    dem.clip(lon_bounds, lat_bounds)
+    dem.interp(lons, lats)
 
     # Parse dates passed as command line arguments or load in all dates if none
     # were passed
     dates = []
     if args.dates is None:
         date_file = os.path.join(config.SCRATCH_DIR,
-                                'uifg_ts',
-                                config.MASTER_DATE.strftime('%Y%m%d') + '.yml')
+                                 'uifg_ts',
+                                 config.MASTER_DATE.strftime('%Y%m%d') + '.yml')
         dates = []
         with open(date_file) as f:
             dates = yaml.safe_load(f)
@@ -504,39 +511,31 @@ def _parallel_era_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
                  date.strftime('%Y-%m-%d'))
     before_model.clip(lon_bounds, lat_bounds)
     after_model.clip(lon_bounds, lat_bounds)
-    before_model.resample(dem['lons'], dem['lats'])
-    after_model.resample(dem['lons'], dem['lats'])
+    before_model.resample(dem.lons, dem.lats)
+    after_model.resample(dem.lons, dem.lats)
 
     # Incorporate rainfall data if needed
     if plevels is not None:
         _, wr_after_path = find_closest_weather_radar_files(date)
-        wr = nimrod.load_from_netcdf(wr_after_path)
-        nimrod.clip_wr(wr, lon_bounds, lat_bounds)
-        wr = nimrod.resample_wr(wr, dem['lons'], dem['lats'])
+        wr = nimrod.Nimrod.from_netcdf(wr_after_path)
+        wr.clip(lon_bounds, lat_bounds)
+        wr.interp(dem.lons, dem.lats, method='nearest')
 
         pmin, pmax = min(plevels), max(plevels)
-        after_model.add_rainfall(wr['data'], pmin, pmax, filter_std)
+        after_model.add_rainfall(wr.data, pmin, pmax, filter_std)
 
     # Calculate the delay for models before and after the acquisition.
     logging.info('Calculating zenith delay for model %s',
                  before_model.date.strftime('%Y-%m-%d'))
-    delay_before = corrections.calculate_era_zenith_delay(before_model, dem)
+    wet_before, dry_before, total_before = corrections.calculate_era_zenith_delay(before_model, dem)
     logging.info('Calculating zenith delay for model %s',
                  after_model.date.strftime('%Y-%m-%d'))
-    delay_after = corrections.calculate_era_zenith_delay(after_model, dem)
+    wet_after, dry_after, total_after = corrections.calculate_era_zenith_delay(after_model, dem)
 
-    # Calculate the weighting for the two models
-    time_diff = (after_model.date - before_model.date).total_seconds()
-    before_diff = (date - before_model.date).total_seconds()
-    before_weight = 1 - (before_diff / time_diff)
-
-    delay = {}
-    delay['total'] = (before_weight * delay_before['data']
-                      + (1 - before_weight) * delay_after['data'])
-    delay['wet'] = (before_weight * delay_before['wet_delay']
-                    + (1 - before_weight) * delay_after['wet_delay'])
-    delay['dry'] = (before_weight * delay_before['dry_delay']
-                    + (1 - before_weight) * delay_after['dry_delay'])
+    # Apply time weighting
+    wet_delay = insar.SAR.interpolate(wet_before, wet_after, date)
+    dry_delay = insar.SAR.interpolate(dry_before, dry_after, date)
+    total_delay = insar.SAR.interpolate(total_before, total_after, date)
 
     # Create output paths
     output_base = os.path.join(config.SCRATCH_DIR,
@@ -553,9 +552,9 @@ def _parallel_era_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
                                  + '_total.npy'))
 
     # Save out the results
-    np.save(output_dry, delay['dry'])
-    np.save(output_wet, delay['wet'])
-    np.save(output_total, delay['total'])
+    np.save(output_dry, dry_delay.data)
+    np.save(output_wet, wet_delay.data)
+    np.save(output_total, total_delay.data)
 
     # Calculate the slant delay
     output_base = os.path.join(config.SCRATCH_DIR,
@@ -566,13 +565,13 @@ def _parallel_era_delay(date, dem, lon_bounds, lat_bounds, plevels=None,
     output_dry = output_wet.replace('_wet', '_dry')
     output_total = output_wet.replace('_wet', '_total')
 
-    slant_wet = corrections.zenith2slant(delay['wet'], np.deg2rad(21))
-    slant_dry = corrections.zenith2slant(delay['dry'], np.deg2rad(21))
-    slant_total = corrections.zenith2slant(delay['total'], np.deg2rad(21))
+    slant_wet = wet_delay.zenith2slant(np.deg2rad(21))
+    slant_dry = dry_delay.zenith2slant(np.deg2rad(21))
+    slant_total = total_delay.zenith2slant(np.deg2rad(21))
 
-    np.save(output_wet, slant_wet)
-    np.save(output_dry, slant_dry)
-    np.save(output_total, slant_total)
+    np.save(output_wet, slant_wet.data)
+    np.save(output_dry, slant_dry.data)
+    np.save(output_total, slant_total.data)
 
 
 def execute_calculate_ifg_delays(args):
@@ -585,8 +584,7 @@ def execute_calculate_ifg_delays(args):
     for (master_date, slave_date, _) in bperp_contents:
         helper_args += [(master_date, slave_date)]
 
-    os.makedirs(os.path.join(config.SCRATCH_DIR,
-                             'insar_atmos_delays'),
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'insar_atmos_delays'),
                 exist_ok=True)
 
     with Pool() as p:
@@ -594,16 +592,24 @@ def execute_calculate_ifg_delays(args):
 
 
 def _execute_calculate_ifg_delays(master_date, slave_date):
-    slant_delay_dir = os.path.join(config.SCRATCH_DIR,
-                                   'slant_delays')
-    master_delay = np.load(os.path.join(slant_delay_dir,
-                                        master_date.strftime('%Y%m%d') + '_total.npy'))
-    slave_delay = np.load(os.path.join(slant_delay_dir, slave_date.strftime('%Y%m%d')
-                                       + '_total.npy'))
+    slant_delay_dir = os.path.join(config.SCRATCH_DIR, 'slant_delays')
+    try:
+        master_delay = np.load(os.path.join(slant_delay_dir,
+                                            (master_date.strftime('%Y%m%d')
+                                             + '_total.npy')))
+        slave_delay = np.load(os.path.join(slant_delay_dir,
+                                           (slave_date.strftime('%Y%m%d') +
+                                            '_total.npy')))
+    except FileNotFoundError:
+        logging.warning('No correction found for %s / %s pairing, skipping',
+                        master_date, slave_date)
+        return
+
     ifg_delay = corrections.calc_ifg_delay(master_delay, slave_delay)
 
     output_dir = os.path.join(config.SCRATCH_DIR, 'insar_atmos_delays')
-    output_file_name = slave_date.strftime('%Y%m%d') + '_' + master_date.strftime('%Y%m%d') + '.npy'
+    output_file_name = (slave_date.strftime('%Y%m%d') + '_' +
+                        master_date.strftime('%Y%m%d') + '.npy')
     output_path = os.path.join(output_dir, output_file_name)
 
     np.save(output_path, ifg_delay)
@@ -624,7 +630,7 @@ def execute_calculate_liquid_delay(args):
     # Load radar images for target date
     logging.debug('Loading radar image for %s', date.strftime('%Y-%m-%d'))
     _, wr_path = find_closest_weather_radar_files(date)
-    wr = nimrod.load_from_netcdf(wr_path)
+    wr = nimrod.Nimrod.from_netcdf(wr_path)
 
     lon_min, lon_max = np.amin(lons), np.amax(lons)
     lat_min, lat_max = np.amin(lats), np.amax(lats)
@@ -634,38 +640,32 @@ def execute_calculate_liquid_delay(args):
     lat_bounds = (lat_min - 0.5, lat_max + 0.5)
 
     # Clip and resample radar image
-    nimrod.clip_wr(wr, lon_bounds, lat_bounds)
-    wr = nimrod.resample_wr(wr, lons, lats)
+    wr.clip(lon_bounds, lat_bounds)
+    wr.interp(lons, lats, method='nearest')
 
     # Calculate the liquid water content and delay
-    lwc = nimrod.rainfall2lwc(wr)
+    lwc = wr.lwc()
     zenith_liquid = corrections.liquid_zenith_delay(lwc, cloud_thickness)
-    slant_liquid = corrections.zenith2slant(zenith_liquid, np.deg2rad(21))
+    slant_liquid = zenith_liquid.zenith2slant(np.deg2rad(21))
 
     # Save the slant delay and the liquid water content
-    zenith_output_dir = os.path.join(config.SCRATCH_DIR,
-                                     'zenith_delays')
-    slant_output_dir = os.path.join(config.SCRATCH_DIR,
-                                    'slant_delays')
-    lwc_output_dir = os.path.join(config.SCRATCH_DIR,
-                                  'lwc')
+    zenith_output_dir = os.path.join(config.SCRATCH_DIR, 'zenith_delays')
+    slant_output_dir = os.path.join(config.SCRATCH_DIR, 'slant_delays')
+    lwc_output_dir = os.path.join(config.SCRATCH_DIR, 'lwc')
     delay_output_name = date.strftime('%Y%m%d') + '_liquid' + '.npy'
     lwc_output_name = date.strftime('%Y%m%d') + '.npy'
 
-    zenith_output_path = os.path.join(zenith_output_dir,
-                                      delay_output_name)
-    slant_output_path = os.path.join(slant_output_dir,
-                                     delay_output_name)
-    lwc_output_path = os.path.join(lwc_output_dir,
-                                   lwc_output_name)
+    zenith_output_path = os.path.join(zenith_output_dir, delay_output_name)
+    slant_output_path = os.path.join(slant_output_dir, delay_output_name)
+    lwc_output_path = os.path.join(lwc_output_dir, lwc_output_name)
 
     os.makedirs(zenith_output_dir, exist_ok=True)
     os.makedirs(slant_output_dir, exist_ok=True)
     os.makedirs(lwc_output_dir, exist_ok=True)
 
-    np.save(zenith_output_path, zenith_liquid)
-    np.save(slant_output_path, slant_liquid)
-    np.save(lwc_output_path, lwc)
+    np.save(zenith_output_path, zenith_liquid.data)
+    np.save(slant_output_path, slant_liquid.data)
+    np.save(lwc_output_path, lwc.data)
 
     # If it exists, recalculate the total delay so it includes the liquid delay
     total_zenith_delay_path = zenith_output_path.replace('_liquid', '_total')
@@ -676,7 +676,7 @@ def execute_calculate_liquid_delay(args):
                      date.strftime('%Y-%m-%d'))
         zenith_wet = np.load(zenith_output_path.replace('_liquid', '_wet'))
         zenith_dry = np.load(zenith_output_path.replace('_liquid', '_dry'))
-        total_delay = zenith_wet + zenith_dry + zenith_liquid
+        total_delay = zenith_wet + zenith_dry + zenith_liquid.data
         np.save(total_zenith_delay_path, total_delay)
 
     if os.path.exists(total_slant_delay_path):
@@ -684,7 +684,7 @@ def execute_calculate_liquid_delay(args):
                      date.strftime('%Y-%m-%d'))
         slant_wet = np.load(slant_output_path.replace('_liquid', '_wet'))
         slant_dry = np.load(slant_output_path.replace('_liquid', '_dry'))
-        total_delay = slant_wet + slant_dry + slant_liquid
+        total_delay = slant_wet + slant_dry + slant_liquid.data
         np.save(total_slant_delay_path, total_delay)
 
 
