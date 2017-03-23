@@ -26,6 +26,7 @@ import argparse
 plt.style.use('ggplot')
 
 COAST_DETAIL = 'f'
+FIGSIZE = None
 
 def _parse_unwrapped_ifg_args(args):
     if args.time_series:
@@ -106,7 +107,7 @@ def plot_ifg(ifg, axes=None, center_zero=True):
     if axes:
         fig = axes.get_figure()
     else:
-        fig = plt.figure()
+        fig = plt.figure(figsize=FIGSIZE)
         axes = fig.add_subplot(1, 1, 1)
 
     bmap = Basemap(llcrnrlon=ifg['lons'][0],
@@ -295,7 +296,7 @@ def plot_delay_rainfall_scatter(date, fname=None):
     nimrod.clip_wr(wr, lon_bounds, lat_bounds)
     wr = nimrod.resample_wr(wr, lons, lats)
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=FIGSIZE)
     axes = fig.add_subplot(1, 1, 1)
     axes.plot(wr['data'].ravel(), atmos.ravel(), 'o')
 
@@ -317,7 +318,7 @@ def plot_wr(wr, axes=None):
     if axes:
         fig = axes.get_figure()
     else:
-        fig = plt.figure()
+        fig = plt.figure(figsize=FIGSIZE)
         axes = fig.add_subplot(1, 1, 1)
 
     bmap = Basemap(llcrnrlon=wr['lons'][0],
@@ -415,7 +416,7 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
     if isinstance(master_date, str):
         master_date = datetime.strptime(master_date, '%Y%m%dT%H%M')
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=FIGSIZE)
     ifg_ax = plt.subplot2grid((2, 2), (0, 0))
     wr_ax = plt.subplot2grid((2, 2), (0, 1))
     profile_ax = plt.subplot2grid((2, 2), (1, 0), colspan=2)
@@ -504,7 +505,7 @@ def plot_baseline_plot(master_date, fname=None):
     slc_dates = sorted(set(ifg_master_dates + ifg_slave_dates))
 
     # Set up the plot
-    fig = plt.figure()
+    fig = plt.figure(figsize=FIGSIZE)
     axes = fig.add_subplot(1, 1, 1)
 
     # Plot lines connecting dates for interferograms
@@ -901,6 +902,10 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--coast-detail', action='store',
                         default='i',
                         help='Resolution of coastlines in the plot.')
+    parser.add_argument('-f', '--figsize', action='store', nargs=2, type=float,
+                        default=None,
+                        help='The width and height of figures inches.')
+
     subparsers = parser.add_subparsers()
 
     # Plot unwrapped interferogram parser
@@ -1100,6 +1105,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.chdir(args.d)
     COAST_DETAIL = args.coast_detail
+    FIGSIZE = args.figsize
     config.load_from_yaml('config.yml')
     logging.basicConfig(level=config.LOG_LEVEL)
 
