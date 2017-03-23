@@ -34,7 +34,13 @@ def _parse_unwrapped_ifg_args(args):
     if args.time_series:
         plot_time_series_ifg(args.master, args.slave, args.output)
     else:
-        plot_unwrapped_ifg(args.master, args.slave, args.output, args.resampled)
+        kind = 'original'
+        if args.resampled:
+            kind = 'resampled'
+        if args.corrected:
+            kind = 'corrected'
+
+        plot_unwrapped_ifg(args.master, args.slave, args.output, kind)
 
 
 def _plot_all_uifgs(args):
@@ -58,13 +64,16 @@ def _plot_all_uifgs(args):
         p.starmap(plot_unwrapped_ifg, args_list)
 
 
-def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
+def plot_unwrapped_ifg(master_date, slave_date, fname=None, kind='original'):
     """
     master_date, slc_date : str or date
       If a string, should be in the format '%Y%m%d'.
     fname : str, opt
       The path to save the image to or `None`. If set, interactive plotting will
       be disabled.
+    kind : str, opt
+      One of 'original', 'resampled', 'corrected' meaning to plot the original,
+      resampled or corrected interferogram.
 
     Returns
     -------
@@ -80,7 +89,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
     ifg_name = '{}_{}'.format(slave_date, master_date)
     ifg_path = ''
     ifg = None
-    if resampled:
+    if kind == 'resampled':
         ifg_path = os.path.join(config.SCRATCH_DIR, 'uifg_resampled', ifg_name + '.npy')
         data = np.load(ifg_path)
         lons, lats = workflow.read_grid_from_file(os.path.join(config.SCRATCH_DIR,
@@ -91,9 +100,14 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
                           data,
                           datetime.strptime(master_date, '%Y%m%d').date(),
                           datetime.strptime(slave_date, '%Y%m%d').date())
-    else:
+    elif kind == 'original':
         ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
         ifg = insar.InSAR.from_netcdf(ifg_path)
+    elif kind == 'corrected':
+        ifg_path = os.path.join(config.SCRATCH_DIR, 'corrected_ifg', ifg_name + '.nc')
+        ifg = insar.InSAR.from_netcdf(ifg_path)
+    else:
+        raise ValueError('Unknown plotting mode {}'.format(kind))
 
     fig, _ = plot_ifg(ifg)
     if fname:
@@ -910,6 +924,8 @@ if __name__ == '__main__':
                                      help='Plot the resampled interferogram')
     plot_uifg_subparser.add_argument('-t', '--time-series', action='store_true',
                                      help='Plot inverted time series interferogram')
+    plot_uifg_subparser.add_argument('-c', '--corrected', action='store_true',
+                                     help='Plot corrected interferogram')
 
     plot_uifg_all_subparser = subparsers.add_parser('uifg-all',
                                                     help='Plot all unwrapped interferograms')
