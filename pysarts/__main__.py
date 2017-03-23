@@ -137,6 +137,25 @@ liquid_delay_parser.add_argument('-d', '--date',
                                        'Defaults to configuration master'
                                        'date.'))
 
+correction_parser = subparsers.add_parser('apply-corrections',
+                                          help=('Apply corrections to '
+                                                'interferograms'))
+correction_parser.add_argument('-l', '--liquid', action='store_true',
+                               help=('Apply a correction for the liquid delay '
+                                     'if it has been calculated.'))
+correction_parser.add_argument('-w', '--wet', action='store_true',
+                               help=('Apply a correction for the wet delay'))
+correction_parser.add_argument('-y', '--dry', action='store_true',
+                               help=('Apply a correction for the dry delay'))
+correction_parser.add_argument('-t', '--total', action='store_true',
+                               help=('Apply a correction for all delays. '
+                                     'Overrides -w, -l and -y'))
+correction_parser.add_argument('-d', '--dates', action='store', nargs='+',
+                               default=None, help=('Apply a correction for '
+                                                   'pairings of specific '
+                                                   'dates.'))
+correction_parser.set_defaults(func=workflow.execute_correction_step)
+
 clean_parser = subparsers.add_parser('clean',
                                      help='Remove pysarts files')
 clean_parser.set_defaults(func=workflow.execute_clean_step)

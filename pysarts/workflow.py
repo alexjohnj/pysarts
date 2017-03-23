@@ -415,6 +415,7 @@ end
     with open(os.path.join(output_directory, 'setup.m'), 'w') as f:
         f.write(setup_script_contents)
 
+
 def execute_calculate_era_delays(args):
     """For all dates calculates the one-way zenith delay produced by the wet and dry
     components of the atmosphere. Outputs are saved into
@@ -686,6 +687,99 @@ def execute_calculate_liquid_delay(args):
         slant_dry = np.load(slant_output_path.replace('_liquid', '_dry'))
         total_delay = slant_wet + slant_dry + slant_liquid.data
         np.save(total_slant_delay_path, total_delay)
+
+
+def execute_correction_step(args):
+    delay_dir = os.path.join(config.SCRATCH_DIR, 'slant_delays')
+    # Set up the output directory
+    output_dir = os.path.join(config.SCRATCH_DIR, 'corrected_ifg')
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Flags for the final NetCDF's history
+    LIQUID_CORRECTED = False
+    WET_CORRECTED = False
+    DRY_CORRECTED = False
+
+    # Get a list of interferograms to make the correction for.
+    bperp_contents = inversion.read_bperp_file(config.BPERP_FILE_PATH)
+
+    # Load the grid
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                  'grid.txt'))
+
+    # Let's go
+    for (master_date, slave_date, _) in bperp_contents:
+        if (args.dates and (master_date.strftime('%Y%m%d') not in args.dates or
+            slave_date.strftime('%Y%m%d') not in args.dates)):
+            continue
+
+        logging.info('Processing %s / %s', master_date, slave_date)
+        master_base = os.path.join(delay_dir, master_date.strftime('%Y%m%d'))
+        slave_base = os.path.join(delay_dir, slave_date.strftime('%Y%m%d'))
+
+        # Load delays for master and slave dates
+        master_delay = np.zeros((lats.size, lons.size))
+        slave_delay = np.zeros((lats.size, lons.size))
+        if args.total:
+            master_delay = np.load(master_base + '_total.npy')
+            slave_delay = np.load(slave_base + '_total.npy')
+
+            WET_CORRECTED = True
+            DRY_CORRECTED = True
+            if (os.path.exists(master_base + '_liquid.npy') or
+                os.path.exists(slave_base + '_liquid.npy')):
+                LIQUID_CORRECTED = True
+        else:
+            if args.liquid:
+                try:
+                    master_delay += np.load(master_base + '_liquid.npy')
+                    LIQUID_CORRECTED = True
+                except FileNotFoundError:
+                    logging.info('No liquid delay for %s', master_date)
+                try:
+                    slave_delay += np.load(slave_base + '_liquid.npy')
+                    LIQUID_CORRECTED = True
+                except FileNotFoundError:
+                    logging.info('No liquid delay for %s', slave_date)
+            if args.dry:
+                master_delay += np.load(master_base + '_dry.npy')
+                slave_delay += np.load(slave_base + '_dry.npy')
+                DRY_CORRECTED = True
+            if args.wet:
+                master_delay += np.load(master_base + '_wet.npy')
+                slave_delay += np.load(slave_base + '_wet.npy')
+                WET_CORRECTED = True
+
+        # Calculate interferometric delay
+        insar_delay = master_delay - slave_delay
+
+        # Load the original interferogram and apply the correction
+        original_path = os.path.join(config.SCRATCH_DIR, 'uifg_resampled',
+                                     slave_date.strftime('%Y%m%d') + '_' +
+                                     master_date.strftime('%Y%m%d') + '.npy')
+        ifg = np.load(original_path)
+        ifg = np.ma.masked_values(ifg, 0)
+        ifg = ifg - insar_delay
+
+        # Save as a NetCDF
+        ifg = insar.InSAR(lons, lats, ifg, master_date, slave_date)
+        output_path = os.path.join(output_dir, slave_date.strftime('%Y%m%d')
+                                   + '_' + master_date.strftime('%Y%m%d')
+                                   + '.nc')
+        history_str = 'Processing by pysarts:'
+        if config.REGION:
+            history_str += ' clipped, '
+        if config.RESOLUTION:
+            history_str += ' resampled, '
+        if DRY_CORRECTED:
+            history_str += ' hydrostatic correction from era-interim, '
+        if WET_CORRECTED:
+            history_str += ' wet correction from era-interim, '
+        if LIQUID_CORRECTED:
+            history_str += ' liquid correction from radar rainfall, '
+
+        history_str = history_str.strip().strip(',')
+        ifg.save_netcdf(output_path, history_str)
 
 
 def execute_clean_step(args):
