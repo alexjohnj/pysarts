@@ -9,7 +9,7 @@ import numpy as np
 import scipy.interpolate as interp
 import scipy.stats as stats
 
-from . import processing
+from . import insar
 
 def load_from_netcdf(path):
     """Load a nimrod dictionary from a netcdf file.
@@ -41,9 +41,9 @@ def load_from_netcdf(path):
 def clip_wr(wr, lon_bounds, lat_bounds):
     """Clip a weather radar image to a specified region.
 
-    See the documentation for `processing.clip_ifg` (which this wraps).
+    See the documentation for `insar.clip_ifg` (which this wraps).
     """
-    processing.clip_ifg(wr, lon_bounds, lat_bounds)
+    insar.clip_ifg(wr, lon_bounds, lat_bounds)
 
 
 def resample_wr(wr, new_lons, new_lats):

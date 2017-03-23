@@ -15,7 +15,7 @@ import numpy as np
 import yaml
 
 from . import inversion
-from . import processing
+from . import insar
 from . import workflow
 from . import nimrod
 from . import util
@@ -92,7 +92,7 @@ def plot_unwrapped_ifg(master_date, slave_date, fname=None, resampled=False):
         ifg['slave_date'] = datetime.strptime(slave_date, '%Y%m%d').date()
     else:
         ifg_path = os.path.join(config.UIFG_DIR, ifg_name + '.nc')
-        ifg = processing.open_ifg_netcdf(ifg_path)
+        ifg = insar.open_ifg_netcdf(ifg_path)
 
     fig, _ = plot_ifg(ifg)
     if fname:

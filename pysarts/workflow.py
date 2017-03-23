@@ -21,7 +21,7 @@ from . import corrections
 from . import config
 from . import inversion
 from . import nimrod
-from . import processing
+from . import insar
 from . import timeseries
 from . import util
 
@@ -37,7 +37,7 @@ def find_ifgs():
     Returns the path to interferograms satisfying the configuration.
 
     """
-    return processing.find_ifgs_for_dates(config.UIFG_DIR, config.MASTER_DATE.date(), config.DATES)
+    return insar.find_ifgs_for_dates(config.UIFG_DIR, config.MASTER_DATE.date(), config.DATES)
 
 def load_clip_resample(path):
     """Loads, clips and resamples an interferogram.
@@ -52,19 +52,19 @@ def load_clip_resample(path):
 
     logging.info('Processing %s', os.path.splitext(os.path.basename(path))[0])
     logging.debug('Loading %s', path)
-    ifg = processing.open_ifg_netcdf(path)
+    ifg = insar.open_ifg_netcdf(path)
 
     if SHOULD_CLIP:
         logging.debug('Clipping')
         lon_bounds = (config.REGION['lon_min'], config.REGION['lon_max'])
         lat_bounds = (config.REGION['lat_min'], config.REGION['lat_max'])
-        processing.clip_ifg(ifg, lon_bounds, lat_bounds)
+        insar.clip_ifg(ifg, lon_bounds, lat_bounds)
     else:
         logging.debug('Clipping disabled')
 
     if SHOULD_RESAMPLE:
         logging.debug('Resampling')
-        processing.resample_ifg(ifg, config.RESOLUTION['delta_x'], config.RESOLUTION['delta_y'])
+        insar.resample_ifg(ifg, config.RESOLUTION['delta_x'], config.RESOLUTION['delta_y'])
     else:
         logging.debug('Resampling disabled')
 
@@ -438,8 +438,8 @@ def execute_calculate_era_delays(args):
 
     # Clip and resample the DEM to the target region
     logging.info('Clipping and resampling DEM to target region')
-    processing.clip_ifg(dem, lon_bounds, lat_bounds)
-    processing._resample_ifg(dem, lons, lats)
+    insar.clip_ifg(dem, lon_bounds, lat_bounds)
+    insar._resample_ifg(dem, lons, lats)
 
     # Parse dates passed as command line arguments or load in all dates if none
     # were passed
