@@ -899,8 +899,8 @@ def plot_insar_delay(master_date, slave_date, output=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
-    parser.add_argument('-d', action='store', default='.', help=('The project'
-                                                                 'directory'))
+    parser.add_argument('-d', '--directory', action='store', default='.',
+                        help=('The project directory'))
     parser.add_argument('-r', '--coast-detail', action='store',
                         default='i',
                         help='Resolution of coastlines in the plot.')
@@ -1107,7 +1107,8 @@ if __name__ == '__main__':
     insar_delay_parser.set_defaults(func=_plot_insar_delay)
 
     args = parser.parse_args()
-    os.chdir(args.d)
+    os.chdir(args.directory)
+
     COAST_DETAIL = args.coast_detail
     FIGSIZE = args.figsize
     DPI = args.dpi
