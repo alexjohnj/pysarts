@@ -586,7 +586,7 @@ def execute_calculate_ifg_delays(args):
         helper_args += [(master_date, slave_date)]
 
     os.makedirs(os.path.join(config.SCRATCH_DIR,
-                             'ifg_era_delays'),
+                             'insar_atmos_delays'),
                 exist_ok=True)
 
     with Pool() as p:
@@ -602,7 +602,7 @@ def _execute_calculate_ifg_delays(master_date, slave_date):
                                        + '_total.npy'))
     ifg_delay = corrections.calc_ifg_delay(master_delay, slave_delay)
 
-    output_dir = os.path.join(config.SCRATCH_DIR, 'ifg_era_delays')
+    output_dir = os.path.join(config.SCRATCH_DIR, 'insar_atmos_delays')
     output_file_name = slave_date.strftime('%Y%m%d') + '_' + master_date.strftime('%Y%m%d') + '.npy'
     output_path = os.path.join(output_dir, output_file_name)
 
@@ -713,7 +713,7 @@ def execute_clean_step(args):
     dirs += os.path.join(config.SCRATCH_DIR,
                          'zenith_delays')
     dirs += os.path.join(config.SCRATCH_DIR,
-                         'ifg_era_delays')
+                         'insar_atmos_delays')
     dirs += os.path.join(config.SCRATCH_DIR,
                          'lwc')
 
