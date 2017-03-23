@@ -794,22 +794,22 @@ def execute_clean_step(args):
         exit(0)
 
     dirs = []
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'uifg_resampled')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'uifg_ts')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'master_atmosphere')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'dem_error')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'slant_delays')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'zenith_delays')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'insar_atmos_delays')
-    dirs += os.path.join(config.SCRATCH_DIR,
-                         'lwc')
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'uifg_resampled')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'uifg_ts')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'master_atmosphere')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'dem_error')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'slant_delays')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'zenith_delays')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'insar_atmos_delays')]
+    dirs += [os.path.join(config.SCRATCH_DIR,
+                          'lwc')]
 
     for dir in dirs:
         try:
@@ -818,4 +818,7 @@ def execute_clean_step(args):
             pass
 
     # Remove grid file
-    os.remove(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+    try:
+        os.remove(os.path.join(config.SCRATCH_DIR, 'grid.txt'))
+    except FileNotFoundError:
+        pass
