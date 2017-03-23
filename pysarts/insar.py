@@ -61,13 +61,46 @@ class InSAR(GeoGrid):
                              df.variables['Band1'][:, :],
                              master_date,
                              slave_date)
+            if 'delay' in df.variables:
+                # Read a pysarts generated NetCDF
+                return InSAR(df.variables['lon'][:],
+                             df.variables['lat'][:],
+                             df.variables['delay'][:, :],
+                             master_date,
+                             slave_date)
             else:
                 # Try reading a generic NetCDF
                 return InSAR(df.variables['x'][:],
                              df.variables['y'][:],
-                             df.variables['z'][:, :],
+                             df.variables['z'][:, :].data,
                              master_date,
                              slave_date)
+
+    def save_netcdf(self, path, history=None):
+        with Dataset(path, 'w', format='NETCDF4') as df:
+            lat = df.createDimension('lat', self.lats.size)
+            lon = df.createDimension('lon', self.lons.size)
+
+            # Create variables
+            lats = df.createVariable('lat', 'f4', ('lat',), zlib=True)
+            lons = df.createVariable('lon', 'f4', ('lon',), zlib=True)
+            delays = df.createVariable('delay', 'f4', ('lat', 'lon'), zlib=True)
+
+            # Set global attributes
+            df.description = 'Unwrapped interferometric line of sight delays'
+            if history is not None:
+                df.history = history
+
+            # Set attributes on variables
+            lats.units = 'degrees north'
+            lons.units = 'degrees east'
+            delays.units = 'cm'
+            delays.description = 'Line of sight delay.'
+
+            # Assign to variables
+            lats[:] = self.lats
+            lons[:] = self.lons
+            delays[:, :] = self.data
 
 
 def find_ifgs_for_dates(ifg_dir, master_date, slc_dates=None):
