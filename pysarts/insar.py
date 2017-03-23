@@ -7,15 +7,17 @@ from netCDF4 import Dataset
 
 from . import util
 
+
 def find_ifgs_for_dates(ifg_dir, master_date, slc_dates=None):
-    """Find all the interferograms for a set of SLC dates and a given master date.
+    """Find all the interferograms for a set of SLC dates and a given master
+    date.
 
     Arguments
     ---------
     ifg_dir : str
-      The directory to search for interferograms. Interferograms should be named
-      as SLAVE_MASTER.nc where SLAVE and MASTER are datestamps in the format
-      YYYYMMDD.
+      The directory to search for interferograms. Interferograms should be
+      named as SLAVE_MASTER.nc where SLAVE and MASTER are datestamps in the
+      format YYYYMMDD.
     master_date : date
       The master date.
     slc_dates : list(date), opt
@@ -24,7 +26,8 @@ def find_ifgs_for_dates(ifg_dir, master_date, slc_dates=None):
 
     Returns
     -------
-    A list of files that are made up of images from `master_date` or `slc_dates`.
+    A list of files that are made up of images from `master_date` or
+    `slc_dates`.
     """
     ifg_files = glob.glob(os.path.join(ifg_dir, '**/*.nc'), recursive=True)
 
@@ -40,6 +43,7 @@ def find_ifgs_for_dates(ifg_dir, master_date, slc_dates=None):
             accepted_files.append(file)
 
     return accepted_files
+
 
 def open_ifg_netcdf(path):
     """Open an NetCDF interferogram and read the longitudes, latitudes and data.
@@ -70,6 +74,7 @@ def open_ifg_netcdf(path):
     ifg['master_date'], ifg['slave_date'] = util.extract_timestamp_from_ifg_name(path)
 
     return ifg
+
 
 def clip_ifg(ifg, lon_bounds, lat_bounds):
     """Clips an interferogram to a rectangular region.
@@ -110,12 +115,16 @@ def clip_ifg(ifg, lon_bounds, lat_bounds):
     ifg['lons'] = ifg['lons'][lon_min_idx:lon_max_idx+1]
     ifg['lats'] = ifg['lats'][lat_min_idx:lat_max_idx+1]
 
+
 def _resample_ifg(ifg, new_lons, new_lats):
     """Resamples an IFG onto a new set of longitudes and latitudes."""
-    spline_f = RectBivariateSpline(ifg['lons'], ifg['lats'], ifg['data'].transpose())
+    spline_f = RectBivariateSpline(ifg['lons'],
+                                   ifg['lats'],
+                                   ifg['data'].transpose())
     ifg['data'] = spline_f(new_lons, new_lats, grid=True).transpose()
     ifg['lons'] = new_lons
     ifg['lats'] = new_lats
+
 
 def resample_ifg(ifg, delta_x, delta_y):
     """Resamples an IFG at a new resolution.
@@ -136,7 +145,8 @@ def resample_ifg(ifg, delta_x, delta_y):
     None
     """
     # Convert resolutions to degrees
-    metre_to_deg = lambda x: x / 111110
+    def metre_to_deg(x):
+        return x / 111110
     delta_x_deg = metre_to_deg(delta_x)
     delta_y_deg = metre_to_deg(delta_y)
 
@@ -144,6 +154,7 @@ def resample_ifg(ifg, delta_x, delta_y):
     new_lats = np.arange(ifg['lats'][0], ifg['lats'][-1], delta_y_deg)
 
     _resample_ifg(ifg, new_lons, new_lats)
+
 
 def _point_is_in_grid(grid_x, grid_y, x, y):
     """Check if a point falls within a grid.
