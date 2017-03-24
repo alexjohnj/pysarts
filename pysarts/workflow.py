@@ -13,8 +13,7 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 import scipy.io as scpio
-
-import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
 
 from .geogrid import GeoGrid
 from .era import ERAModel
@@ -643,6 +642,7 @@ def execute_calculate_liquid_delay(args):
     # Clip and resample radar image
     wr.clip(lon_bounds, lat_bounds)
     wr.interp(lons, lats, method='nearest')
+    wr.data = gaussian_filter(wr.data, args.blur)
 
     # Calculate the liquid water content and delay
     lwc = wr.lwc()
@@ -710,7 +710,7 @@ def execute_correction_step(args):
     # Let's go
     for (master_date, slave_date, _) in bperp_contents:
         if (args.dates and (master_date.strftime('%Y%m%d') not in args.dates or
-            slave_date.strftime('%Y%m%d') not in args.dates)):
+                            slave_date.strftime('%Y%m%d') not in args.dates)):
             continue
 
         logging.info('Processing %s / %s', master_date, slave_date)

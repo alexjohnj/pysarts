@@ -136,6 +136,12 @@ liquid_delay_parser.add_argument('-d', '--date',
                                  help=('Date to calculate delay for.'
                                        'Defaults to configuration master'
                                        'date.'))
+liquid_delay_parser.add_argument('-b', '--blur',
+                                 action='store',
+                                 default=0,
+                                 type=float,
+                                 help=('Standard deviation of Gaussian filter '
+                                       'to apply to rainfall'))
 
 correction_parser = subparsers.add_parser('apply-corrections',
                                           help=('Apply corrections to '
