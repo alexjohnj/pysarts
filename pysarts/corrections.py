@@ -106,7 +106,9 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     for y, x in np.ndindex(pdem.shape[0], pdem.shape[1]):
         # Check if there's no rainfall on both dates. If so just do a normal
         # weather model correction.
-        logging.debug('Processing patch (%d, %d) of (%d, %d)', y + 1, x + 1, pdem.shape[0], pdem.shape[1])
+        logging.info('Processing patch (%d, %d) of (%d, %d) for interferogram '
+                     '%s / %s', y, x, pdem.shape[0] - 1, pdem.shape[1] - 1,
+                     ifg.master_date, ifg.slave_date)
         if pmwr[y, x, :, :].sum() == 0 and pswr[y, x, :, :].sum() == 0:
             logging.debug('No rainfall in patch (%d, %d)', y, x)
             # Construct new DEM and ERAModel objects from patches
