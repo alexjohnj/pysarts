@@ -782,6 +782,127 @@ def execute_correction_step(args):
         ifg.save_netcdf(output_path, history_str)
 
 
+def execute_rainfall_optimisation_step(args):
+    # Extract arguments
+    dates = []
+    if args.master_date is not None and args.slave_date is not None:
+        master_date = datetime.strptime(args.master_date, '%Y%m%d')
+        slave_date = datetime.strptime(args.slave_date, '%Y%m%d')
+        dates += [(master_date, slave_date)]
+    else:
+        bperp_contents = inversion.read_bperp_file(config.BPERP_FILE_PATH)
+        dates = [(master_date, slave_date) for (master_date, slave_date, _) in
+                 bperp_contents]
+
+    min_plevel = args.min_pressure
+    patch_size = (args.patch_size[0], args.patch_size[1])
+
+    # Load grid & DEM
+    logging.info('Loading DEM')
+    lons, lats = read_grid_from_file(os.path.join(config.SCRATCH_DIR,
+                                                  'grid.txt'))
+    lon_bounds = (lons.min() - 0.5, lons.max() + 0.5)
+    lat_bounds = (lats.min() - 0.5, lats.max() + 0.5)
+
+    # Load the DEM
+    dem = GeoGrid.from_netcdf(config.DEM_PATH)
+    dem.data.fill_value = 0
+    dem.data = dem.data.filled()
+    dem.clip(lon_bounds, lat_bounds)
+    dem.interp(lons, lats, method='bivariate')
+
+    pool_args = []
+    for (master_date, slave_date) in dates:
+        pool_args += [(dem, master_date, slave_date, min_plevel, patch_size)]
+
+    with Pool(args.ncpu) as p:
+        p.starmap(_rainfall_optim_heper, pool_args)
+
+
+def _rainfall_optim_heper(dem, master_date, slave_date, min_plevel,
+                          patch_size):
+    logging.info('Processing %s / %s', master_date, slave_date)
+    master_datestamp = master_date.strftime('%Y%m%d')
+    slave_datestamp = slave_date.strftime('%Y%m%d')
+    # Get the grid again
+    lons, lats = dem.lons, dem.lats
+    lon_bounds = (lons.min() - 0.5, lons.max() + 0.5)
+    lat_bounds = (lats.min() - 0.5, lats.max() + 0.5)
+
+    # Load interferogram
+    ifg = np.load(os.path.join(config.SCRATCH_DIR,
+                               'uifg_resampled',
+                               slave_datestamp + '_' + master_datestamp + '.npy'))
+    ifg = insar.InSAR(lons, lats, ifg, master_date, slave_date)
+
+    # Load weather radar images
+    logging.info('Clipping and resampling radar images')
+    master_datetime = datetime(master_date.year, master_date.month,
+                               master_date.day,
+                               config.MASTER_DATE.hour,
+                               config.MASTER_DATE.minute)
+    slave_datetime = datetime(slave_date.year, slave_date.month,
+                              slave_date.day,
+                              config.MASTER_DATE.hour,
+                              config.MASTER_DATE.minute)
+    _, mwr_path = find_closest_weather_radar_files(master_datetime)
+    _, swr_path = find_closest_weather_radar_files(slave_datetime)
+    mwr = nimrod.Nimrod.from_netcdf(mwr_path)
+    swr = nimrod.Nimrod.from_netcdf(swr_path)
+    mwr.clip(lon_bounds, lat_bounds)
+    mwr.interp(lons, lats, method='nearest')
+    swr.clip(lon_bounds, lat_bounds)
+    swr.interp(lons, lats, method='nearest')
+
+    # Load weather models
+    logging.info('Loading, clipping and resampling weather models')
+    _, mmodel_path = find_closest_weather_radar_files(master_datetime,
+                                                      config.ERA_MODELS_PATH)
+    _, smodel_path = find_closest_weather_radar_files(slave_datetime,
+                                                      config.ERA_MODELS_PATH)
+    mmodel = ERAModel.load_era_netcdf(mmodel_path)
+    smodel = ERAModel.load_era_netcdf(smodel_path)
+
+    mmodel.clip(lon_bounds, lat_bounds)
+    mmodel.resample(lons, lats)
+    smodel.clip(lon_bounds, lat_bounds)
+    smodel.resample(lons, lats)
+
+    output = corrections.patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr,
+                                           min_plevel, patch_size,
+                                           np.deg2rad(21))
+    mwet, mdry, swet, sdry, m_plevels, s_plevels = output
+    master_zenith_base = os.path.join(config.SCRATCH_DIR, 'zenith_delays',
+                                      master_datestamp + '_type.npy')
+    slave_zenith_base = os.path.join(config.SCRATCH_DIR, 'zenith_delays',
+                                     slave_datestamp + '_type.npy')
+    master_slant_base = os.path.join(config.SCRATCH_DIR, 'slant_delays',
+                                     master_datestamp + '_type.npy')
+    slave_slant_base = os.path.join(config.SCRATCH_DIR, 'slant_delays',
+                                    slave_datestamp + '_type.npy')
+
+    np.save(master_zenith_base.replace('type', 'wet'), mwet.data)
+    np.save(master_zenith_base.replace('type', 'dry'), mdry.data)
+    np.save(master_zenith_base.replace('type', 'total'), mdry.data + mwet.data)
+    np.save(master_zenith_base.replace('type', 'pressure'), m_plevels)
+    np.save(slave_zenith_base.replace('type', 'wet'), swet.data)
+    np.save(slave_zenith_base.replace('type', 'dry'), sdry.data)
+    np.save(slave_zenith_base.replace('type', 'total'), sdry.data + swet.data)
+    np.save(slave_zenith_base.replace('type', 'pressure'), s_plevels)
+
+    mwet = mwet.zenith2slant(np.deg2rad(21))
+    mdry = mdry.zenith2slant(np.deg2rad(21))
+    swet = swet.zenith2slant(np.deg2rad(21))
+    sdry = sdry.zenith2slant(np.deg2rad(21))
+
+    np.save(master_slant_base.replace('type', 'wet'), mwet.data)
+    np.save(master_slant_base.replace('type', 'dry'), mdry.data)
+    np.save(master_slant_base.replace('type', 'total'), mdry.data + mwet.data)
+    np.save(slave_slant_base.replace('type', 'wet'), swet.data)
+    np.save(slave_slant_base.replace('type', 'dry'), sdry.data)
+    np.save(slave_slant_base.replace('type', 'total'), sdry.data + swet.data)
+
+
 def execute_clean_step(args):
     """Removes files generated by pysarts."""
     print("WARNING")

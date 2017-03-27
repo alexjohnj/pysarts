@@ -162,6 +162,34 @@ correction_parser.add_argument('-d', '--dates', action='store', nargs='+',
                                                    'dates.'))
 correction_parser.set_defaults(func=workflow.execute_correction_step)
 
+optim_correction_parser = subparsers.add_parser('optim-era-delay',
+                                                help=('Rainfall optimised ERA '
+                                                      'correction'))
+optim_correction_parser.set_defaults(func=workflow.execute_rainfall_optimisation_step)
+optim_correction_parser.add_argument('-p', '--patch-size',
+                                     required=True,
+                                     nargs=2,
+                                     type=int,
+                                     action='store',
+                                     help='Patch size (lats x lons)')
+optim_correction_parser.add_argument('-c', '--ncpu',
+                                     type=int,
+                                     default=1,
+                                     help='Number of CPU cores to use')
+optim_correction_parser.add_argument('-m', '--master-date',
+                                     default=None,
+                                     action='store',
+                                     help=('Master date'))
+optim_correction_parser.add_argument('-s', '--slave-date',
+                                     default=None,
+                                     action='store',
+                                     help=('Slave date'))
+optim_correction_parser.add_argument('--min-pressure',
+                                     default=600,
+                                     type=float,
+                                     action='store',
+                                     help=('Minimum pressure level to test'))
+
 clean_parser = subparsers.add_parser('clean',
                                      help='Remove pysarts files')
 clean_parser.set_defaults(func=workflow.execute_clean_step)
