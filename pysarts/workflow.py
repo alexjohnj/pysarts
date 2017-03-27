@@ -868,6 +868,9 @@ def _rainfall_optim_heper(dem, master_date, slave_date, min_plevel,
     smodel.clip(lon_bounds, lat_bounds)
     smodel.resample(lons, lats)
 
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'zenith_delays'))
+    os.makedirs(os.path.join(config.SCRATCH_DIR, 'slant_delays'))
+
     output = corrections.patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr,
                                            min_plevel, patch_size,
                                            np.deg2rad(21))
