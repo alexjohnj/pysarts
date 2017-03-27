@@ -5,6 +5,7 @@ import numpy as np
 from scipy.interpolate import RectBivariateSpline, griddata
 from netCDF4 import Dataset
 
+
 class GeoGrid(object):
     """A class encapsulating a grid of geospatial data.
 
@@ -171,3 +172,7 @@ class GeoGrid(object):
         self.lons = ilons
 
         return None
+
+    def std(self):
+        """Returns the standard deviation of `self.data` with df=0."""
+        return self.data.std(ddof=0)
