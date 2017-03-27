@@ -106,20 +106,20 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     for y, x in np.ndindex(pdem.shape[0], pdem.shape[1]):
         # Check if there's no rainfall on both dates. If so just do a normal
         # weather model correction.
-        logging.debug('Processing patch (%d, %d) of (%d, %d)', y, x, pdem.shape[0], pdem.shape[1])
+        logging.debug('Processing patch (%d, %d) of (%d, %d)', y + 1, x + 1, pdem.shape[0], pdem.shape[1])
         if pmwr[y, x, :, :].sum() == 0 and pswr[y, x, :, :].sum() == 0:
             logging.debug('No rainfall in patch (%d, %d)', y, x)
             # Construct new DEM and ERAModel objects from patches
             sub_mmodel = ERAModel(plats[y], plons[x], mmodel.date,
-                                  pmrel_hum[y, x],
-                                  pmtemp[y, x],
-                                  pmgeopot[y, x],
-                                  pmpressure[y, x])
+                                  pmrel_hum[y, x, 0],
+                                  pmtemp[y, x, 0],
+                                  pmgeopot[y, x, 0],
+                                  pmpressure[y, x, 0])
             sub_smodel = ERAModel(plats[y], plons[x], mmodel.date,
-                                  psrel_hum[y, x],
-                                  pstemp[y, x],
-                                  psgeopot[y, x],
-                                  pspressure[y, x])
+                                  psrel_hum[y, x, 0],
+                                  pstemp[y, x, 0],
+                                  psgeopot[y, x, 0],
+                                  pspressure[y, x, 0])
             sub_dem = GeoGrid(plons[x], plats[y], pdem[y, x])
 
             sub_mwet, sub_mdry, _ = calculate_era_zenith_delay(sub_mmodel,
@@ -128,10 +128,10 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
                                                                sub_dem)
 
             # Update output matrices
-            pmwet[y, x, :, :] = sub_mwet
-            pmdry[y, x, :, :] = sub_mdry
-            pswet[y, x, :, :] = sub_swet
-            psdry[y, x, :, :] = sub_sdry
+            pmwet[y, x, :, :] = sub_mwet.data
+            pmdry[y, x, :, :] = sub_mdry.data
+            pswet[y, x, :, :] = sub_swet.data
+            psdry[y, x, :, :] = sub_sdry.data
             pm_plevels[y, x, :, :] = np.nan
             ps_plevels[y, x, :, :] = np.nan
 
@@ -160,7 +160,11 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
             pm_plevels[y, x, :, :] = output[4]
             ps_plevels[y, x, :, :] = output[5]
 
-    return mwet, mdry, swet, sdry, m_plevels, s_plevels
+    return (SAR(dem.lons, dem.lats, mwet, ifg.master_date),
+            SAR(dem.lons, dem.lats, mdry, ifg.master_date),
+            SAR(dem.lons, dem.lats, swet, ifg.slave_date),
+            SAR(dem.lons, dem.lats, sdry, ifg.slave_date),
+            m_plevels, s_plevels)
 
 
 # UGLY FUNCTION SIGNATURE.
