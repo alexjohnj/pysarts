@@ -35,8 +35,8 @@ class GeoGrid(object):
         if data.shape != (lats.size, lons.size):
             raise ValueError("Dimension mismatch between data, lons and lats")
 
-        self.lons = lons
-        self.lats = lats
+        self.lons = np.ascontiguousarray(lons)
+        self.lats = np.ascontiguousarray(lats)
         self.data = data
 
     @classmethod

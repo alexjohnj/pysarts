@@ -47,12 +47,12 @@ class ERAModel(object):
     --------------
     """
     def __init__(self, lats, lons, date, rel_hum, temp, geopot, pressure):
-        self.rel_hum = rel_hum
-        self.temp = temp
-        self.geopot = geopot
-        self.pressure = pressure
-        self.lats = lats
-        self.lons = lons
+        self.rel_hum = np.ascontiguousarray(rel_hum)
+        self.temp = np.ascontiguousarray(temp)
+        self.geopot = np.ascontiguousarray(geopot)
+        self.pressure = np.ascontiguousarray(pressure)
+        self.lats = np.ascontiguousarray(lats)
+        self.lons = np.ascontiguousarray(lons)
         self.date = date
 
     @classmethod
