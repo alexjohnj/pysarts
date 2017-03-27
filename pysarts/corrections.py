@@ -207,8 +207,28 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
     psdry = sdry_init.data
     logging.debug('Initial standard deviation: %.5f', max_std)
 
-    for pm_idx in range(max_plevel_idx, min_plevel_idx + 1):
-        for ps_idx in range(max_plevel_idx, min_plevel_idx + 1):
+    # Avoid doing iteration over pressure levels for patches where there's no
+    # rain
+    no_master_rain = pmwr.sum() == 0
+    no_slave_rain = pswr.sum() == 0
+
+    master_max_plevel_idx = max_plevel_idx
+    master_min_plevel_idx = min_plevel_idx
+    slave_max_plevel_idx = max_plevel_idx
+    slave_min_plevel_idx = min_plevel_idx
+
+    if no_master_rain:
+        logging.debug('Master radar patch contains no rain')
+        master_max_plevel_idx = 0
+        master_min_plevel_idx = 0
+
+    if no_slave_rain:
+        logging.debug('Slave radar patch contains no rain')
+        slave_max_plevel_idx = 0
+        slave_min_plevel_idx = 0
+
+    for pm_idx in range(master_max_plevel_idx, master_min_plevel_idx + 1):
+        for ps_idx in range(slave_max_plevel_idx, slave_min_plevel_idx + 1):
             logging.debug('Testing master pressure level %d slave pressure '
                           'level %d', pmpressure[0, 0, pm_idx],
                           pspressure[0, 0, ps_idx])
@@ -218,8 +238,10 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
             psmodel_obj.rel_hum = psrel_hum.copy()
 
             # Add rainfall
-            pmmodel_obj.add_rainfall(pmwr, 1000, pmpressure[0, 0, pm_idx], 0)
-            psmodel_obj.add_rainfall(pswr, 1000, pspressure[0, 0, ps_idx], 0)
+            if not no_master_rain:
+                pmmodel_obj.add_rainfall(pmwr, 1000, pmpressure[0, 0, pm_idx], 0)
+            if not no_slave_rain:
+                psmodel_obj.add_rainfall(pswr, 1000, pspressure[0, 0, ps_idx], 0)
 
             # Calculate the zenith delays
             mwet_zen, mdry_zen, _ = calculate_era_zenith_delay(pmmodel_obj,
@@ -247,8 +269,8 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
                 pmdry[:, :] = mdry_zen.data.copy()
                 pswet[:, :] = swet_zen.data.copy()
                 psdry[:, :] = sdry_zen.data.copy()
-                pm_plevels[:, :] = pmpressure[0, 0, pm_idx]
-                ps_plevels[:, :] = pspressure[0, 0, ps_idx]
+                pm_plevels[:, :] = np.nan if no_master_rain else pmpressure[0, 0, pm_idx]
+                ps_plevels[:, :] = np.nan if no_slave_rain else pspressure[0, 0, ps_idx]
                 max_std = corrected_ifg.std()
                 logging.debug('Accepting model with standard deviation %.5f',
                               max_std)
