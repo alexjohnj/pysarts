@@ -11,3 +11,4 @@ PyYAML==3.12
 scipy==0.19
 six==1.10.0
 numba==0.31.0
+scikit-image==0.12.3
