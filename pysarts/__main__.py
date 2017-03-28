@@ -190,6 +190,22 @@ optim_correction_parser.add_argument('--min-pressure',
                                      action='store',
                                      help=('Minimum pressure level to test'))
 
+std_parser = subparsers.add_parser('std', help='Standard deviation')
+std_parser.set_defaults(func=workflow.execute_std)
+std_parser.add_argument('-m', '--master-date', required=True, action='store',
+                        help='The master date of an interferogram')
+std_parser.add_argument('-s', '--slave-date', required=True, action='store',
+                        help='The slave date of an interferogram')
+std_parser.add_argument('-o', '--original', action='store_true',
+                        help=('Calculate the standard deviation of '
+                              'the original interferogram'))
+std_parser.add_argument('-r', '--resampled', action='store_true',
+                        help=('Calculate the standard deviation of a '
+                              'resampled interferogram'))
+std_parser.add_argument('-c', '--corrected', action='store_true',
+                        help=('Calculate the standard deviation of a '
+                              'corrected interferogram'))
+
 clean_parser = subparsers.add_parser('clean',
                                      help='Remove pysarts files')
 clean_parser.set_defaults(func=workflow.execute_clean_step)
