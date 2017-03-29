@@ -3,7 +3,7 @@
 import numpy as np
 from numba import jit
 import numba
-from skimage.util import view_as_blocks
+from skimage.util import view_as_windows
 import logging
 
 from .util import trapz, interp1d_jit
@@ -64,28 +64,25 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     The latitudes and longitudes of `dem` are used to index all other
     parameters. Everything needs to be on the same grid as a result.
     """
-    if dem.data.shape[0] % patch_size[0] != 0 or dem.data.shape[1] % patch_size[1] != 0:
-        raise ValueError('Patch shape does not divide evenly into DEM shape.')
-
     # Divide input matrices into view blocks.
-    pdem = view_as_blocks(dem.data, patch_size)
-    plats = view_as_blocks(dem.lats, (patch_size[0],))
-    plons = view_as_blocks(dem.lons, (patch_size[1],))
+    pdem = view_as_windows(dem.data, patch_size)
+    plats = view_as_windows(dem.lats, (patch_size[0],))
+    plons = view_as_windows(dem.lons, (patch_size[1],))
 
-    pifg = view_as_blocks(ifg.data, patch_size)
-    pmwr = view_as_blocks(mwr.data, patch_size)
-    pswr = view_as_blocks(swr.data, patch_size)
+    pifg = view_as_windows(ifg.data, patch_size)
+    pmwr = view_as_windows(mwr.data, patch_size)
+    pswr = view_as_windows(swr.data, patch_size)
 
     nplevels = mmodel.pressure.shape[2]
-    pmrel_hum = view_as_blocks(mmodel.rel_hum, patch_size + (nplevels,))
-    pmtemp = view_as_blocks(mmodel.temp, patch_size + (nplevels,))
-    pmgeopot = view_as_blocks(mmodel.geopot, patch_size + (nplevels,))
-    pmpressure = view_as_blocks(mmodel.pressure, patch_size + (nplevels,))
+    pmrel_hum = view_as_windows(mmodel.rel_hum, patch_size + (nplevels,))
+    pmtemp = view_as_windows(mmodel.temp, patch_size + (nplevels,))
+    pmgeopot = view_as_windows(mmodel.geopot, patch_size + (nplevels,))
+    pmpressure = view_as_windows(mmodel.pressure, patch_size + (nplevels,))
 
-    psrel_hum = view_as_blocks(smodel.rel_hum, patch_size + (nplevels,))
-    pstemp = view_as_blocks(smodel.temp, patch_size + (nplevels,))
-    psgeopot = view_as_blocks(smodel.geopot, patch_size + (nplevels,))
-    pspressure = view_as_blocks(smodel.pressure, patch_size + (nplevels,))
+    psrel_hum = view_as_windows(smodel.rel_hum, patch_size + (nplevels,))
+    pstemp = view_as_windows(smodel.temp, patch_size + (nplevels,))
+    psgeopot = view_as_windows(smodel.geopot, patch_size + (nplevels,))
+    pspressure = view_as_windows(smodel.pressure, patch_size + (nplevels,))
 
     # Preallocate output matrices and divide them into patches
     mwet = np.zeros(dem.data.shape)
@@ -95,12 +92,12 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     m_plevels = np.zeros(dem.data.shape)
     s_plevels = np.zeros(dem.data.shape)
 
-    pmwet = view_as_blocks(mwet, patch_size)
-    pmdry = view_as_blocks(mdry, patch_size)
-    pswet = view_as_blocks(swet, patch_size)
-    psdry = view_as_blocks(sdry, patch_size)
-    pm_plevels = view_as_blocks(m_plevels, patch_size)
-    ps_plevels = view_as_blocks(s_plevels, patch_size)
+    pmwet = view_as_windows(mwet, patch_size)
+    pmdry = view_as_windows(mdry, patch_size)
+    pswet = view_as_windows(swet, patch_size)
+    psdry = view_as_windows(sdry, patch_size)
+    pm_plevels = view_as_windows(m_plevels, patch_size)
+    ps_plevels = view_as_windows(s_plevels, patch_size)
 
     # Iterate through patch by patch
     for y, x in np.ndindex(pdem.shape[0], pdem.shape[1]):
@@ -245,9 +242,9 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
 
             # Add rainfall
             if not no_master_rain:
-                pmmodel_obj.add_rainfall(pmwr, 1000, pmpressure[0, 0, pm_idx], 0)
+                pmmodel_obj.add_rainfall(pmwr, pmpressure[0, 0, pm_idx], 1000, 5)
             if not no_slave_rain:
-                psmodel_obj.add_rainfall(pswr, 1000, pspressure[0, 0, ps_idx], 0)
+                psmodel_obj.add_rainfall(pswr, pspressure[0, 0, ps_idx], 1000, 5)
 
             # Calculate the zenith delays
             mwet_zen, mdry_zen, _ = calculate_era_zenith_delay(pmmodel_obj,
