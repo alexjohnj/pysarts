@@ -908,6 +908,83 @@ def _rainfall_optim_heper(dem, master_date, slave_date, min_plevel,
     np.save(slave_slant_base.replace('type', 'total'), sdry.data + swet.data)
 
 
+def execute_global_opt(args):
+    master_date = datetime.strptime(args.master_date, '%Y%m%d')
+    slave_date = datetime.strptime(args.slave_date, '%Y%m%d')
+    master_datetime = datetime(master_date.year, master_date.month,
+                               master_date.day, config.MASTER_DATE.hour,
+                               config.MASTER_DATE.minute)
+    slave_datetime = datetime(slave_date.year, slave_date.month,
+                              slave_date.day, config.MASTER_DATE.hour,
+                              config.MASTER_DATE.minute)
+
+    # Load grid
+    grid_path = os.path.join(config.SCRATCH_DIR, 'grid.txt')
+    lons, lats = read_grid_from_file(grid_path)
+    lon_min, lon_max = lons.min(), lons.max()
+    lat_min, lat_max = lats.min(), lats.max()
+
+    lon_bounds = (lon_min - 0.5, lon_max + 0.5)
+    lat_bounds = (lat_min - 0.5, lat_max + 0.5)
+
+    # Load and process DEM
+    logging.info('Loading DEM')
+    dem = GeoGrid.from_netcdf(config.DEM_PATH)
+    dem.data.fill_value = 0
+    dem.data = dem.data.filled()
+    logging.debug('Clipping DEM')
+    dem.clip(lon_bounds, lat_bounds)
+    logging.debug('Resampling DEM')
+    dem.interp(lons, lats)
+
+    # Load and process weather models
+    logging.info('Loading weather models')
+    _, mwm_path = find_closest_weather_radar_files(master_datetime,
+                                                   config.ERA_MODELS_PATH)
+    _, swm_path = find_closest_weather_radar_files(slave_datetime,
+                                                   config.ERA_MODELS_PATH)
+
+    mwm = ERAModel.load_era_netcdf(mwm_path)
+    swm = ERAModel.load_era_netcdf(swm_path)
+
+    logging.debug('Clipping weather models')
+    mwm.clip(lon_bounds, lat_bounds)
+    swm.clip(lon_bounds, lat_bounds)
+
+    logging.debug('Resampling weather models')
+    mwm.resample(lons, lats)
+    swm.resample(lons, lats)
+
+    # Load and process weather radar images
+    logging.info('Loading weather radar images')
+    _, mwr_path = find_closest_weather_radar_files(master_datetime)
+    _, swr_path = find_closest_weather_radar_files(slave_datetime)
+    mwr = nimrod.Nimrod.from_netcdf(mwr_path)
+    swr = nimrod.Nimrod.from_netcdf(swr_path)
+
+    logging.debug('Clipping weather radar images')
+    mwr.clip(lon_bounds, lat_bounds)
+    swr.clip(lon_bounds, lat_bounds)
+
+    logging.debug('Resampling weather radar images')
+    mwr.interp(lons, lats, method='nearest')
+    swr.interp(lons, lats, method='nearest')
+
+    # Load pre-clipped and resampled interferogram
+    logging.info('Loading interferogram')
+    ifg_path = os.path.join(config.SCRATCH_DIR, 'uifg_resampled',
+                            args.slave_date + '_' + args.master_date + '.npy')
+    ifg_data = np.load(ifg_path)
+    ifg = insar.InSAR(lons, lats, ifg_data, master_date, slave_date)
+
+    results = corrections.optim_era_delay(dem, ifg, mwm, swm, mwr, swr,
+                                          args.plevel)
+
+    print('MAST\tSLAV\tSTD')
+    for result in results:
+        print('{master_p:4.1f}\t{slave_p:4.1f}\t{std:2.5f}'.format(**result))
+
+
 def execute_std(args):
     if args.original:
         path = os.path.join(config.UIFG_DIR, args.slave_date + '_' +

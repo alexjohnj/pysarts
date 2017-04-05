@@ -206,6 +206,18 @@ std_parser.add_argument('-c', '--corrected', action='store_true',
                         help=('Calculate the standard deviation of a '
                               'corrected interferogram'))
 
+global_opt_parser = subparsers.add_parser('global-opt',
+                                          help=('Global optimisation for '
+                                                'pressure levels'))
+global_opt_parser.set_defaults(func=workflow.execute_global_opt)
+global_opt_parser.add_argument('-m', '--master-date', required=True,
+                               action='store', help='Master date')
+global_opt_parser.add_argument('-s', '--slave-date', required=True,
+                               action='store', help='Slave date')
+global_opt_parser.add_argument('-p', '--plevel', required=True, type=float,
+                               action='store', help='Min plevel to test')
+
+
 clean_parser = subparsers.add_parser('clean',
                                      help='Remove pysarts files')
 clean_parser.set_defaults(func=workflow.execute_clean_step)

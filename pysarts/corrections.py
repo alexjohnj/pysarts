@@ -5,11 +5,65 @@ from numba import jit
 import numba
 from skimage.util import view_as_windows
 import logging
+import itertools
+from multiprocessing.pool import Pool
 
 from .util import trapz, interp1d_jit
 from .insar import SAR
 from .era import ERAModel
 from .geogrid import GeoGrid
+
+
+def optim_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
+                    look_angle=0.367):
+    helper_args = []
+    max_plevel_idx = 0
+    try:
+        min_plevel_idx = np.nonzero(mmodel.pressure[0, 0, :] == min_plevel)[0][0]
+    except IndexError:
+        raise IndexError('Minimum pressure level could not be found in the '
+                         'weather model')
+
+    plevels = mmodel.pressure[0, 0, max_plevel_idx:min_plevel_idx + 1]
+    test_plevels = itertools.product(plevels, plevels)
+
+    for (master_p, slave_p) in test_plevels:
+        helper_args += [(dem, ifg, mmodel, smodel, mwr, swr, master_p, slave_p,
+                         look_angle)]
+
+    logging.debug('%d pressure combinations to test', len(helper_args))
+    with Pool() as p:
+        results = p.starmap(_optim_era_delay, helper_args)
+
+    return results
+
+
+def _optim_era_delay(dem, ifg, mmodel, smodel, mwr, swr, master_min_plevel,
+                     slave_min_plevel, look_angle=0.367):
+    """Returns a dictionary with the keys 'master_p', 'slave_p' and
+    'std'. 'master_p' and 'slave_p' are the minimum pressure levels used. 'std'
+    is the standard deviation of the corrected interferogram."""
+    logging.debug('Testing master/slave pressure combination %.1f/%.1f',
+                  master_min_plevel, slave_min_plevel)
+    mmodel.add_rainfall(mwr.data, master_min_plevel, 1000, 0)
+    smodel.add_rainfall(swr.data, slave_min_plevel, 1000, 0)
+
+    mwet, mdry, _ = calculate_era_zenith_delay(mmodel, dem)
+    swet, sdry, _ = calculate_era_zenith_delay(smodel, dem)
+
+    mwet, mdry = mwet.zenith2slant(look_angle), mdry.zenith2slant(look_angle)
+    swet, sdry = swet.zenith2slant(look_angle), sdry.zenith2slant(look_angle)
+
+    ifg_total = (mwet.data + mdry.data) - (swet.data + sdry.data)
+    corrected_ifg = ifg.data - ifg_total
+
+    std = corrected_ifg.std()
+
+    return {
+        'master_p': master_min_plevel,
+        'slave_p': slave_min_plevel,
+        'std': std
+    }
 
 
 def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
