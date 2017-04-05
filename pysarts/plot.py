@@ -24,6 +24,15 @@ from . import train
 import argparse
 
 plt.style.use('ggplot')
+params = {
+    'axes.labelsize': 9,
+    'font.size': 9,
+    'xtick.labelsize': 8,
+    'ytick.labelsize': 8,
+    'font.family': 'Source Sans Pro',
+}
+
+plt.rcParams.update(params)
 
 COAST_DETAIL = 'f'
 FIGSIZE = None
@@ -142,9 +151,9 @@ def plot_ifg(ifg, axes=None, center_zero=True):
 
     bmap.drawcoastlines()
     bmap.drawparallels(parallels, labels=[True, False, False, False],
-                       fmt="%.2f", fontsize=9)
+                       fmt="%.2f", fontsize=plt.rcParams['ytick.labelsize'])
     bmap.drawmeridians(meridians, labels=[False, False, False, True],
-                       fmt="%.2f", fontsize=9)
+                       fmt="%.2f", fontsize=plt.rcParams['xtick.labelsize'])
     bmap.drawmapboundary()
 
     vmax = (np.absolute(ifg.data).max())
@@ -175,10 +184,10 @@ def plot_ifg(ifg, axes=None, center_zero=True):
         title = 'Unwrapped Interferogram\nMaster: {0}\nSlave: {1}'.format(
             ifg.master_date.strftime('%Y-%m-%d'),
             ifg.slave_date.strftime('%Y-%m-%d'))
-        axes.set_title(title)
+        # axes.set_title(title)
     else:
         title = 'SAR Image ({})'.format(ifg.date.strftime('%Y-%m-%d'))
-        axes.set_title(title)
+        # axes.set_title(title)
 
     fig.tight_layout()
 
@@ -281,11 +290,11 @@ def plot_master_atmosphere(master_date, fname=None):
 
     fig, _ = plot_ifg(sar)
     axes = fig.get_axes()[0]
-    axes.set_title('Master Atmosphere\n{}'
-                   .format(sar.date.strftime('%Y-%m-%d')))
     if fname:
         fig.savefig(fname, bbox_inches='tight')
     else:
+        axes.set_title('Master Atmosphere\n{}'
+                       .format(sar.date.strftime('%Y-%m-%d')))
         plt.show()
 
 
@@ -321,12 +330,12 @@ def plot_delay_rainfall_scatter(date, fname=None):
 
     fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
     axes = fig.add_subplot(1, 1, 1)
-    axes.plot(wr.data.ravel(), atmos.ravel(), 'o')
+    axes.plot(wr.data.ravel(), atmos.ravel(), 'o', markersize=1)
 
     axes.set_xlabel(r'Rainfall Rate / mm hr$^{-1}$')
     axes.set_ylabel(r'LOS Delay / cm')
-    axes.set_title('Rainfall Scatter ({})'
-                   .format(date.strftime('%Y-%m-%d')))
+    # axes.set_title('Rainfall Scatter ({})'
+    #                .format(date.strftime('%Y-%m-%d')))
 
     if fname:
         fig.savefig(fname, bbox_inches='tight')
@@ -358,9 +367,9 @@ def plot_wr(wr, axes=None):
 
     bmap.drawcoastlines()
     bmap.drawparallels(parallels, labels=[True, False, False, False],
-                       fmt="%.2f", fontsize=9)
+                       fmt="%.2f", fontsize=plt.rcParams['ytick.labelsize'])
     bmap.drawmeridians(meridians, labels=[False, False, False, True],
-                       fmt="%.2f", fontsize=9)
+                       fmt="%.2f", fontsize=plt.rcParams['xtick.labelsize'])
     bmap.drawmapboundary()
 
     lon_mesh, lat_mesh = np.meshgrid(wr.lons, wr.lats)
@@ -381,7 +390,7 @@ def plot_wr(wr, axes=None):
         title = ('Rainfall Radar Image\n({0})'
                  .format(wr.date.strftime('%Y-%m-%dT%H:%M')))
 
-    axes.set_title(title)
+    # axes.set_title(title)
     fig.tight_layout()
 
     return (fig, bmap)
@@ -409,7 +418,8 @@ def plot_weather(wr_date, full=False, fname=None):
 
     wr_before = nimrod.Nimrod.from_netcdf(wr_before)
     wr_after = nimrod.Nimrod.from_netcdf(wr_after)
-    wr = nimrod.Nimrod.interp_radar(wr_before, wr_after, wr_date)
+    # wr = nimrod.Nimrod.interp_radar(wr_before, wr_after, wr_date)
+    wr = wr_after
 
     if not full:
         # Clip image to target region
@@ -471,28 +481,31 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
 
     # Plot and configure sar
     _, bmap_sar = plot_ifg(sar, axes=sar_ax)
-    sar_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
-    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=sar_ax)
-    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=sar_ax)
+    # sar_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
+    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, color='white', ax=sar_ax)
+    bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=0.5, ax=sar_ax)
 
     # Plot and configure weather radar image
     _, bmap_wr = plot_wr(wr, axes=wr_ax)
-    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=2, color='white', ax=wr_ax)
-    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, ax=wr_ax)
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, color='white', ax=wr_ax)
+    bmap_wr.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=0.5, ax=wr_ax)
 
     # Plot the profile
     ## LOS Delay
     sar_lon_idx = np.argmin(np.absolute(sar.lons - longitude))
     wr_lon_idx = np.argmin(np.absolute(wr.lons - longitude))
-    profile_ax.plot(sar.lats, sar.data[:, sar_lon_idx])
+    profile_ax.plot(sar.lats, sar.data[:, sar_lon_idx], color='#67a9cf')
+    profile_ax.tick_params('y', colors='#67a9cf')
     profile_ax.set_ylabel('LOS Delay / cm')
     profile_ax.set_xlabel(r'Latitude / $\degree$')
+    profile_ax.grid(b=False, axis='y')
 
     ## Rainfall
     profile_ax_rain = profile_ax.twinx()
-    profile_ax_rain.plot(wr.lats, wr.data[:, wr_lon_idx], color='orange')
-    profile_ax_rain.tick_params('y', colors='orange')
+    profile_ax_rain.plot(wr.lats, wr.data[:, wr_lon_idx], color='#ef8a62')
+    profile_ax_rain.tick_params('y', colors='#ef8a62')
     profile_ax_rain.set_ylabel(r'Rainfall / mm hr$^{-1}$')
+    profile_ax_rain.grid(b=False)
 
     if fname:
         fig.savefig(fname, bbox_inches='tight')
