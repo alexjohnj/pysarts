@@ -92,6 +92,12 @@ def calculate_inverse(ifg_paths, master_date, grid_shape, output_model):
         output_model[:] = np.linalg.lstsq(kernel, data)[0].T.reshape(grid_shape + (-1,))
 
     new_ifg_dates = sorted(list(set([date for pairs in ifg_date_pairs for date in pairs])))
+    master_date_std = output_model[:, :, new_ifg_dates.index(master_date)].std()
+    if master_date_std > 100:
+        logging.warn('Master date time series interferogram has a high standard '
+                     'deviation (%.2f). Forcing to zeros. Exercise caution.',
+                     master_date_std)
+        output_model[:, :, new_ifg_dates.index(master_date)] = 0
     return new_ifg_dates
 
 
