@@ -977,12 +977,12 @@ def execute_global_opt(args):
     ifg_data = np.load(ifg_path)
     ifg = insar.InSAR(lons, lats, ifg_data, master_date, slave_date)
 
+    print('MAST\tSLAV\tSTD')
     results = corrections.optim_era_delay(dem, ifg, mwm, swm, mwr, swr,
                                           args.plevel)
 
-    print('MAST\tSLAV\tSTD')
-    for result in results:
-        print('{master_p:4.1f}\t{slave_p:4.1f}\t{std:2.5f}'.format(**result))
+    # for result in results:
+    #     print('{master_p:4.1f}\t{slave_p:4.1f}\t{std:2.5f}'.format(**result))
 
 
 def execute_std(args):

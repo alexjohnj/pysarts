@@ -7,6 +7,7 @@ from skimage.util import view_as_windows
 import logging
 import itertools
 from multiprocessing.pool import Pool
+import sys
 
 from .util import trapz, interp1d_jit
 from .insar import SAR
@@ -43,10 +44,10 @@ def _optim_era_delay(dem, ifg, mmodel, smodel, mwr, swr, master_min_plevel,
     """Returns a dictionary with the keys 'master_p', 'slave_p' and
     'std'. 'master_p' and 'slave_p' are the minimum pressure levels used. 'std'
     is the standard deviation of the corrected interferogram."""
-    logging.debug('Testing master/slave pressure combination %.1f/%.1f',
-                  master_min_plevel, slave_min_plevel)
-    mmodel.add_rainfall(mwr.data, master_min_plevel, 1000, 0)
-    smodel.add_rainfall(swr.data, slave_min_plevel, 1000, 0)
+    # logging.debug('Testing master/slave pressure combination %.1f/%.1f',
+    #               master_min_plevel, slave_min_plevel)
+    mmodel.add_rainfall(mwr.data, master_min_plevel, 1000, 5)
+    smodel.add_rainfall(swr.data, slave_min_plevel, 1000, 5)
 
     mwet, mdry, _ = calculate_era_zenith_delay(mmodel, dem)
     swet, sdry, _ = calculate_era_zenith_delay(smodel, dem)
@@ -58,6 +59,8 @@ def _optim_era_delay(dem, ifg, mmodel, smodel, mwr, swr, master_min_plevel,
     corrected_ifg = ifg.data - ifg_total
 
     std = corrected_ifg.std()
+    print('{:4.1f}\t{:4.1f}\t{:2.5f}'.format(master_min_plevel, slave_min_plevel, std))
+    sys.stdout.flush()
 
     return {
         'master_p': master_min_plevel,
