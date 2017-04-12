@@ -92,6 +92,8 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
       The correlation coefficient
     p : float
       2-tailed p-value.
+    n : int
+      The number of data points used in the calculation.
 
     """
     if wr.data.size != ifg.data.size:
@@ -108,4 +110,4 @@ def calc_wr_ifg_correlation(wr, ifg, rain_tol=0):
     ifg_data = ifg_data[ifg_zero_idxs]
     wr_data = wr_data[ifg_zero_idxs]
 
-    return pearsonr(wr_data, ifg_data)
+    return pearsonr(wr_data, ifg_data) + (wr_data.size,)
