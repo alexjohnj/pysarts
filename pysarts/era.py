@@ -330,6 +330,6 @@ class ERAModel(object):
             self.rel_hum[:, :, idx] = hum_slice
 
         # Filter
-        pslice = slice(max_plevel_idx, min_plevel_idx)
+        pslice = slice(max_plevel_idx, min_plevel_idx + 1)
         self.rel_hum[:, :, pslice] = gaussian_filter(self.rel_hum[:, :, pslice],
                                                      (filter_std, filter_std, 0))
