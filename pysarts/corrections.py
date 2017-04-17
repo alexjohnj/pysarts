@@ -46,8 +46,8 @@ def _optim_era_delay(dem, ifg, mmodel, smodel, mwr, swr, master_min_plevel,
     is the standard deviation of the corrected interferogram."""
     # logging.debug('Testing master/slave pressure combination %.1f/%.1f',
     #               master_min_plevel, slave_min_plevel)
-    mmodel.add_rainfall(mwr.data, master_min_plevel, 1000, 5)
-    smodel.add_rainfall(swr.data, slave_min_plevel, 1000, 5)
+    mmodel.add_rainfall(mwr.data, master_min_plevel, 1000, 10)
+    smodel.add_rainfall(swr.data, slave_min_plevel, 1000, 10)
 
     mwet, mdry, _ = calculate_era_zenith_delay(mmodel, dem)
     swet, sdry, _ = calculate_era_zenith_delay(smodel, dem)
@@ -121,25 +121,26 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     The latitudes and longitudes of `dem` are used to index all other
     parameters. Everything needs to be on the same grid as a result.
     """
-    # Divide input matrices into view blocks.
-    pdem = view_as_windows(dem.data, patch_size)
-    plats = view_as_windows(dem.lats, (patch_size[0],))
-    plons = view_as_windows(dem.lons, (patch_size[1],))
+    # Divide input matrices into view windows.
+    stride = (int(patch_size[0] / 2), int(patch_size[1] / 2)) # Overlap boundaries
+    pdem = view_as_windows(dem.data, patch_size, stride)
+    plats = view_as_windows(dem.lats, (patch_size[0],), (stride[0],))
+    plons = view_as_windows(dem.lons, (patch_size[1],), (stride[1],))
 
-    pifg = view_as_windows(ifg.data, patch_size)
-    pmwr = view_as_windows(mwr.data, patch_size)
-    pswr = view_as_windows(swr.data, patch_size)
+    pifg = view_as_windows(ifg.data, patch_size, stride)
+    pmwr = view_as_windows(mwr.data, patch_size, stride)
+    pswr = view_as_windows(swr.data, patch_size, stride)
 
     nplevels = mmodel.pressure.shape[2]
-    pmrel_hum = view_as_windows(mmodel.rel_hum, patch_size + (nplevels,))
-    pmtemp = view_as_windows(mmodel.temp, patch_size + (nplevels,))
-    pmgeopot = view_as_windows(mmodel.geopot, patch_size + (nplevels,))
-    pmpressure = view_as_windows(mmodel.pressure, patch_size + (nplevels,))
+    pmrel_hum = view_as_windows(mmodel.rel_hum, patch_size + (nplevels,), stride + (nplevels,))
+    pmtemp = view_as_windows(mmodel.temp, patch_size + (nplevels,), stride + (nplevels,))
+    pmgeopot = view_as_windows(mmodel.geopot, patch_size + (nplevels,), stride + (nplevels,))
+    pmpressure = view_as_windows(mmodel.pressure, patch_size + (nplevels,), stride + (nplevels,))
 
-    psrel_hum = view_as_windows(smodel.rel_hum, patch_size + (nplevels,))
-    pstemp = view_as_windows(smodel.temp, patch_size + (nplevels,))
-    psgeopot = view_as_windows(smodel.geopot, patch_size + (nplevels,))
-    pspressure = view_as_windows(smodel.pressure, patch_size + (nplevels,))
+    psrel_hum = view_as_windows(smodel.rel_hum, patch_size + (nplevels,), stride + (nplevels,))
+    pstemp = view_as_windows(smodel.temp, patch_size + (nplevels,), stride + (nplevels,))
+    psgeopot = view_as_windows(smodel.geopot, patch_size + (nplevels,), stride + (nplevels,))
+    pspressure = view_as_windows(smodel.pressure, patch_size + (nplevels,), stride + (nplevels,))
 
     # Preallocate output matrices and divide them into patches
     mwet = np.zeros(dem.data.shape)
@@ -149,12 +150,12 @@ def patches_era_delay(dem, ifg, mmodel, smodel, mwr, swr, min_plevel=200,
     m_plevels = np.zeros(dem.data.shape)
     s_plevels = np.zeros(dem.data.shape)
 
-    pmwet = view_as_windows(mwet, patch_size)
-    pmdry = view_as_windows(mdry, patch_size)
-    pswet = view_as_windows(swet, patch_size)
-    psdry = view_as_windows(sdry, patch_size)
-    pm_plevels = view_as_windows(m_plevels, patch_size)
-    ps_plevels = view_as_windows(s_plevels, patch_size)
+    pmwet = view_as_windows(mwet, patch_size, stride)
+    pmdry = view_as_windows(mdry, patch_size, stride)
+    pswet = view_as_windows(swet, patch_size, stride)
+    psdry = view_as_windows(sdry, patch_size, stride)
+    pm_plevels = view_as_windows(m_plevels, patch_size, stride)
+    ps_plevels = view_as_windows(s_plevels, patch_size, stride)
 
     # Iterate through patch by patch
     for y, x in np.ndindex(pdem.shape[0], pdem.shape[1]):
@@ -260,7 +261,8 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
     swet_init, sdry_init, _ = calculate_era_zenith_delay(psmodel_obj, pdem_obj)
     correction_init = pifg - ((mwet_init.data + mdry_init.data)
                               - (swet_init.data + sdry_init.data))
-    max_std = correction_init.std()
+    # max_std = correction_init.std()
+    max_std = np.inf
     pmwet = mwet_init.data
     pmdry = mdry_init.data
     pswet = swet_init.data
@@ -299,9 +301,9 @@ def _optimise_zenith_delay(pdem, pifg, pmwr, pswr, pmtemp, pmrel_hum,
 
             # Add rainfall
             if not no_master_rain:
-                pmmodel_obj.add_rainfall(pmwr, pmpressure[0, 0, pm_idx], 1000, 5)
+                pmmodel_obj.add_rainfall(pmwr, pmpressure[0, 0, pm_idx], 1000, 10)
             if not no_slave_rain:
-                psmodel_obj.add_rainfall(pswr, pspressure[0, 0, ps_idx], 1000, 5)
+                psmodel_obj.add_rainfall(pswr, pspressure[0, 0, ps_idx], 1000, 10)
 
             # Calculate the zenith delays
             mwet_zen, mdry_zen, _ = calculate_era_zenith_delay(pmmodel_obj,
