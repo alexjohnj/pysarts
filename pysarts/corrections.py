@@ -468,7 +468,7 @@ def liquid_zenith_delay(lwc, cloud_thickness):
     Arguments
     ---------
     lwc : nimrod.Nimrod
-      Nimrod instance containing the liquid water content in g/cm^3.
+      Nimrod instance containing the liquid water content in g/m^3.
     cloud_thickness (n,m) ndarry OR float
       A matrix containing the cloud thickness at each grid point. Pass a single
       float for a constant cloud thickness.
