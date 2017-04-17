@@ -908,6 +908,65 @@ def plot_insar_delay(master_date, slave_date, output=None):
     plt.close()
 
 
+def _plot_lwc(args):
+    date = datetime.strptime(args.date, '%Y%m%d').date()
+
+    plot_lwc(date, args.output)
+
+
+def plot_lwc(date, fname=None):
+    lwc_file = os.path.join(config.SCRATCH_DIR, 'lwc',
+                            date.strftime('%Y%m%d') + '.npy')
+    data = np.load(lwc_file)
+    print(data.max())
+
+    grid_file = os.path.join(config.SCRATCH_DIR, 'grid.txt')
+    lons, lats = workflow.read_grid_from_file(grid_file)
+
+    fig = plt.figure(dpi=DPI, figsize=FIGSIZE)
+    axes = fig.add_subplot(1, 1, 1)
+
+    bmap = Basemap(llcrnrlon=lons[0],
+                   llcrnrlat=lats[0],
+                   urcrnrlon=lons[-1],
+                   urcrnrlat=lats[-1],
+                   resolution=COAST_DETAIL,
+                   projection='merc',
+                   ax=axes)
+
+    if FIGSIZE is not None and FIGSIZE[0] <= 2:
+        parallels = np.linspace(lats[0], lats[-1], 2)
+        meridians = np.linspace(lons[0], lons[-1], 2)
+    else:
+        parallels = np.linspace(lats[0], lats[-1], 5)
+        meridians = np.linspace(lons[0], lons[-1], 5)
+
+    bmap.drawcoastlines()
+    bmap.drawparallels(parallels, labels=[True, False, False, False],
+                       fmt="%.2f", fontsize=plt.rcParams['ytick.labelsize'])
+    bmap.drawmeridians(meridians, labels=[False, False, False, True],
+                       fmt="%.2f", fontsize=plt.rcParams['xtick.labelsize'])
+    bmap.drawmapboundary()
+
+    lon_mesh, lat_mesh = np.meshgrid(lons, lats)
+    image = bmap.pcolormesh(lon_mesh,
+                            lat_mesh,
+                            data,
+                            latlon=True,
+                            cmap=cm.Blues,
+                            vmin=0,
+                            vmax=data.max())
+
+    cbar = fig.colorbar(image, pad=0.07, ax=axes)
+    cbar.set_label(r'Liquid Water Content / g m$^{-3}$')
+
+    fig.tight_layout()
+    if fname:
+        fig.savefig(fname, bbox_inches='tight')
+    else:
+        plt.show()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pysarts.plot')
     parser.add_argument('-d', '--directory', action='store', default='.',
@@ -1118,6 +1177,17 @@ if __name__ == '__main__':
                                     default=None,
                                     help='Output file name')
     insar_delay_parser.set_defaults(func=_plot_insar_delay)
+
+    lwc_parser = subparsers.add_parser('lwc',
+                                       help=('Plot liquid water content'))
+    lwc_parser.add_argument('-d', '--date',
+                            action='store',
+                            required=True)
+    lwc_parser.add_argument('-o', '--output',
+                            default=None,
+                            action='store',
+                            help=('Output file name'))
+    lwc_parser.set_defaults(func=_plot_lwc)
 
     args = parser.parse_args()
     os.chdir(args.directory)
