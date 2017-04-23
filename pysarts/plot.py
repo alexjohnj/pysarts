@@ -163,10 +163,10 @@ def plot_ifg(ifg, axes=None, center_zero=True):
         title = 'Unwrapped Interferogram\nMaster: {0}\nSlave: {1}'.format(
             ifg.master_date.strftime('%Y-%m-%d'),
             ifg.slave_date.strftime('%Y-%m-%d'))
-        # axes.set_title(title)
+        axes.set_title(title)
     else:
         title = 'SAR Image ({})'.format(ifg.date.strftime('%Y-%m-%d'))
-        # axes.set_title(title)
+        axes.set_title(title)
 
     fig.tight_layout()
 
@@ -313,8 +313,8 @@ def plot_delay_rainfall_scatter(date, fname=None):
 
     axes.set_xlabel(r'Rainfall Rate / mm hr$^{-1}$')
     axes.set_ylabel(r'LOS Delay / cm')
-    # axes.set_title('Rainfall Scatter ({})'
-    #                .format(date.strftime('%Y-%m-%d')))
+    axes.set_title('Rainfall Scatter ({})'
+                   .format(date.strftime('%Y-%m-%d')))
 
     if fname:
         fig.savefig(fname, bbox_inches='tight')
@@ -369,7 +369,7 @@ def plot_wr(wr, axes=None):
         title = ('Rainfall Radar Image\n({0})'
                  .format(wr.date.strftime('%Y-%m-%dT%H:%M')))
 
-    # axes.set_title(title)
+    axes.set_title(title)
     fig.tight_layout()
 
     return (fig, bmap)
@@ -460,7 +460,7 @@ def plot_profile(master_date, longitude, filter_std, fname=None):
 
     # Plot and configure sar
     _, bmap_sar = plot_ifg(sar, axes=sar_ax)
-    # sar_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
+    sar_ax.set_title('Master Atmosphere\n({})'.format(master_date.strftime('%Y-%m-%dT%H:%M')))
     bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=1, color='white', ax=sar_ax)
     bmap_sar.plot([longitude, longitude], lat_bounds, latlon=True, linewidth=0.5, ax=sar_ax)
 
@@ -952,12 +952,12 @@ if __name__ == '__main__':
                         help=('The project directory'))
     parser.add_argument('-r', '--coast-detail', action='store',
                         default='i',
-                        help='Resolution of coastlines in the plot.')
+                        help='Resolution of coastlines in the plot')
     parser.add_argument('-f', '--figsize', action='store', nargs=2, type=float,
                         default=None,
-                        help='The width and height of the figure in inches.')
+                        help='The width and height of the figure in inches')
     parser.add_argument('--dpi', action='store', type=int, default=None,
-                        help='The dpi of the figure.')
+                        help='The dpi of the figure')
 
     subparsers = parser.add_subparsers()
 
@@ -986,7 +986,7 @@ if __name__ == '__main__':
                                                   help='Output file name')
 
     plot_dem_error_subparser = subparsers.add_parser('dem-error',
-                                                     help='Plot DEM error for a date')
+                                                     help='Plot DEM error constant for a date')
     plot_dem_error_subparser.set_defaults(func=_plot_dem_error)
     plot_dem_error_subparser.add_argument('master_date', default=None, nargs='?')
     plot_dem_error_subparser.add_argument('-o', '--output', action='store', default=None,
@@ -994,16 +994,16 @@ if __name__ == '__main__':
 
     rain_scatter_parser = subparsers.add_parser('rain-scatter',
                                                 help=('Plot a rainfall vs. LOS '
-                                                      'delay scatter chart.'))
+                                                      'delay scatter chart'))
     rain_scatter_parser.set_defaults(func=_plot_delay_rainfall_scatter)
     rain_scatter_parser.add_argument('-d', '--date', action='store',
                                      default=None,
-                                     help='Date to plot rainfall scatter for.')
+                                     help='Date to plot rainfall scatter for')
     rain_scatter_parser.add_argument('-o', '--output', action='store',
                                      default=None, help='Output file name')
 
     plot_radar_rainfall_subparser = subparsers.add_parser('weather',
-                                                          help='Plot a rainfall radar image.')
+                                                          help='Plot a rainfall radar image')
     plot_radar_rainfall_subparser.set_defaults(func=_plot_weather)
     plot_radar_rainfall_subparser.add_argument('date', default=None, nargs='?',
                                                help=('The date and time (HH:MM) to plot'
@@ -1014,29 +1014,29 @@ if __name__ == '__main__':
                                                help='Output file name')
     plot_radar_rainfall_subparser.add_argument('-f', '--full',
                                                action='store_true',
-                                               help='Plot the entire radar image instead of just the project region.')
+                                               help='Plot the entire radar image instead of just the project region')
 
     plot_profile_subparser = subparsers.add_parser('profile',
-                                                   help='Plot atmosphere LOS delay and rainfall along a profile')
+                                                   help='Plot master atmosphere LOS delay and rainfall along a profile')
     plot_profile_subparser.set_defaults(func=_plot_profile)
     plot_profile_subparser.add_argument('--longitude',
                                         action='store',
                                         default=None,
-                                        help='The line of longitude to plot along.',
+                                        help='The line of longitude to plot along',
                                         nargs=1,
                                         type=float,
                                         required=True)
     plot_profile_subparser.add_argument('-d', '--date',
                                         action='store',
                                         default=None,
-                                        help='The date to plot a profile for.')
+                                        help='The date to plot a profile for')
     plot_profile_subparser.add_argument('-b', '--blur',
                                         action='store',
                                         default=0,
                                         type=float,
                                         help=('Standard deviation of Gaussian '
                                               'filter to apply to rainfall '
-                                              'data.'))
+                                              'data'))
     plot_profile_subparser.add_argument('-o', '--output',
                                         action='store',
                                         default=None,
@@ -1108,7 +1108,7 @@ if __name__ == '__main__':
     sar_delay_parser.add_argument('-d', '--date',
                                   action='store',
                                   default=None,
-                                  help='Date to plot delay for.')
+                                  help='Date to plot delay for')
     sar_delay_parser.add_argument('-z', '--zenith',
                                   action='store_true',
                                   help='Plot zenith delays instead of slant delays')
@@ -1131,7 +1131,7 @@ if __name__ == '__main__':
     sar_delay_parser.set_defaults(func=_plot_sar_delay)
 
     insar_delay_parser = subparsers.add_parser('insar-delay',
-                                               help=('Plot InSAR delays'
+                                               help=('Plot InSAR delay '
                                                      'computed by pysarts'))
     insar_delay_parser.add_argument('-m', '--master-date',
                                     action='store',
@@ -1150,7 +1150,7 @@ if __name__ == '__main__':
     insar_delay_parser.set_defaults(func=_plot_insar_delay)
 
     lwc_parser = subparsers.add_parser('lwc',
-                                       help=('Plot liquid water content'))
+                                       help=('Plot estimated liquid water content'))
     lwc_parser.add_argument('-d', '--date',
                             action='store',
                             required=True)
