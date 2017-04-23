@@ -52,27 +52,6 @@ def _parse_unwrapped_ifg_args(args):
         plot_unwrapped_ifg(args.master, args.slave, args.output, kind)
 
 
-def _plot_all_uifgs(args):
-    ifg_paths = workflow.find_ifgs()
-    date_pairings = [util.extract_timestamp_from_ifg_name(path) for path in ifg_paths]
-
-    # Build an arguments list so multiple plots can be run in parallel.
-    args_list = []
-    for (master_date, slave_date) in date_pairings:
-        output_file = None
-        if args.output:
-            output_file = os.path.join(args.output,
-                                       (slave_date.strftime('%Y%m%d')
-                                        + '_'
-                                        + master_date.strftime('%Y%m%d')
-                                        + '.png'))
-
-        args_list += [(master_date, slave_date, output_file, args.resampled)]
-
-    with Pool() as p:
-        p.starmap(plot_unwrapped_ifg, args_list)
-
-
 def plot_unwrapped_ifg(master_date, slave_date, fname=None, kind='original'):
     """
     master_date, slc_date : str or date
@@ -998,14 +977,6 @@ if __name__ == '__main__':
                                      help='Plot inverted time series interferogram')
     plot_uifg_subparser.add_argument('-c', '--corrected', action='store_true',
                                      help='Plot corrected interferogram')
-
-    plot_uifg_all_subparser = subparsers.add_parser('uifg-all',
-                                                    help='Plot all unwrapped interferograms')
-    plot_uifg_all_subparser.set_defaults(func=_plot_all_uifgs)
-    plot_uifg_all_subparser.add_argument('-r', '--resampled', action='store_true',
-                                         help='Plot resampled/clipped interferograms')
-    plot_uifg_all_subparser.add_argument('-o', '--output', action='store', default=None,
-                                         help='Directory to save plots to')
 
     plot_master_atmosphere_subparser = subparsers.add_parser('master-atmos',
                                                              help='Plot master atmosphere for a date')
